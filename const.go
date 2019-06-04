@@ -1,0 +1,366 @@
+package ibapi
+
+// IN identifies the msg type of the buf received from TWS or Gateway
+type IN int64
+
+// OUT identifies the msg type of the buf sended to  TWS or Gateway
+type OUT int64
+type FiledType int64
+type Version int
+
+const (
+	INT FiledType = 1
+	STR FiledType = 2
+	FLT FiledType = 3
+)
+
+const (
+	TICK_PRICE                               IN = 1
+	TICK_SIZE                                IN = 2
+	ORDER_STATUS                             IN = 3
+	ERR_MSG                                  IN = 4
+	OPEN_ORDER                               IN = 5
+	ACCT_VALUE                               IN = 6
+	PORTFOLIO_VALUE                          IN = 7
+	ACCT_UPDATE_TIME                         IN = 8
+	NEXT_VALID_ID                            IN = 9
+	CONTRACT_DATA                            IN = 10
+	EXECUTION_DATA                           IN = 11
+	MARKET_DEPTH                             IN = 12
+	MARKET_DEPTH_L2                          IN = 13
+	NEWS_BULLETINS                           IN = 14
+	MANAGED_ACCTS                            IN = 15
+	RECEIVE_FA                               IN = 16
+	HISTORICAL_DATA                          IN = 17
+	BOND_CONTRACT_DATA                       IN = 18
+	SCANNER_PARAMETERS                       IN = 19
+	SCANNER_DATA                             IN = 20
+	TICK_OPTION_COMPUTATION                  IN = 21
+	TICK_GENERIC                             IN = 45
+	TICK_STRING                              IN = 46
+	TICK_EFP                                 IN = 47
+	CURRENT_TIME                             IN = 49
+	REAL_TIME_BARS                           IN = 50
+	FUNDAMENTAL_DATA                         IN = 51
+	CONTRACT_DATA_END                        IN = 52
+	OPEN_ORDER_END                           IN = 53
+	ACCT_DOWNLOAD_END                        IN = 54
+	EXECUTION_DATA_END                       IN = 55
+	DELTA_NEUTRAL_VALIDATION                 IN = 56
+	TICK_SNAPSHOT_END                        IN = 57
+	MARKET_DATA_TYPE                         IN = 58
+	COMMISSION_REPORT                        IN = 59
+	POSITION_DATA                            IN = 61
+	POSITION_END                             IN = 62
+	ACCOUNT_SUMMARY                          IN = 63
+	ACCOUNT_SUMMARY_END                      IN = 64
+	VERIFY_MESSAGE_API                       IN = 65
+	VERIFY_COMPLETED                         IN = 66
+	DISPLAY_GROUP_LIST                       IN = 67
+	DISPLAY_GROUP_UPDATED                    IN = 68
+	VERIFY_AND_AUTH_MESSAGE_API              IN = 69
+	VERIFY_AND_AUTH_COMPLETED                IN = 70
+	POSITION_MULTI                           IN = 71
+	POSITION_MULTI_END                       IN = 72
+	ACCOUNT_UPDATE_MULTI                     IN = 73
+	ACCOUNT_UPDATE_MULTI_END                 IN = 74
+	SECURITY_DEFINITION_OPTION_PARAMETER     IN = 75
+	SECURITY_DEFINITION_OPTION_PARAMETER_END IN = 76
+	SOFT_DOLLAR_TIERS                        IN = 77
+	FAMILY_CODES                             IN = 78
+	SYMBOL_SAMPLES                           IN = 79
+	MKT_DEPTH_EXCHANGES                      IN = 80
+	TICK_REQ_PARAMS                          IN = 81
+	SMART_COMPONENTS                         IN = 82
+	NEWS_ARTICLE                             IN = 83
+	TICK_NEWS                                IN = 84
+	NEWS_PROVIDERS                           IN = 85
+	HISTORICAL_NEWS                          IN = 86
+	HISTORICAL_NEWS_END                      IN = 87
+	HEAD_TIMESTAMP                           IN = 88
+	HISTOGRAM_DATA                           IN = 89
+	HISTORICAL_DATA_UPDATE                   IN = 90
+	REROUTE_MKT_DATA_REQ                     IN = 91
+	REROUTE_MKT_DEPTH_REQ                    IN = 92
+	MARKET_RULE                              IN = 93
+	PNL                                      IN = 94
+	PNL_SINGLE                               IN = 95
+	HISTORICAL_TICKS                         IN = 96
+	HISTORICAL_TICKS_BID_ASK                 IN = 97
+	HISTORICAL_TICKS_LAST                    IN = 98
+	TICK_BY_TICK                             IN = 99
+	ORDER_BOUND                              IN = 100
+	COMPLETED_ORDER                          IN = 101
+	COMPLETED_ORDERS_END                     IN = 102
+)
+
+const (
+	REQ_MKT_DATA                  OUT = 1
+	CANCEL_MKT_DATA               OUT = 2
+	PLACE_ORDER                   OUT = 3
+	CANCEL_ORDER                  OUT = 4
+	REQ_OPEN_ORDERS               OUT = 5
+	REQ_ACCT_DATA                 OUT = 6
+	REQ_EXECUTIONS                OUT = 7
+	REQ_IDS                       OUT = 8
+	REQ_CONTRACT_DATA             OUT = 9
+	REQ_MKT_DEPTH                 OUT = 10
+	CANCEL_MKT_DEPTH              OUT = 11
+	REQ_NEWS_BULLETINS            OUT = 12
+	CANCEL_NEWS_BULLETINS         OUT = 13
+	SET_SERVER_LOGLEVEL           OUT = 14
+	REQ_AUTO_OPEN_ORDERS          OUT = 15
+	REQ_ALL_OPEN_ORDERS           OUT = 16
+	REQ_MANAGED_ACCTS             OUT = 17
+	REQ_FA                        OUT = 18
+	REPLACE_FA                    OUT = 19
+	REQ_HISTORICAL_DATA           OUT = 20
+	EXERCISE_OPTIONS              OUT = 21
+	REQ_SCANNER_SUBSCRIPTION      OUT = 22
+	CANCEL_SCANNER_SUBSCRIPTION   OUT = 23
+	REQ_SCANNER_PARAMETERS        OUT = 24
+	CANCEL_HISTORICAL_DATA        OUT = 25
+	REQ_CURRENT_TIME              OUT = 49
+	REQ_REAL_TIME_BARS            OUT = 50
+	CANCEL_REAL_TIME_BARS         OUT = 51
+	REQ_FUNDAMENTAL_DATA          OUT = 52
+	CANCEL_FUNDAMENTAL_DATA       OUT = 53
+	REQ_CALC_IMPLIED_VOLAT        OUT = 54
+	REQ_CALC_OPTION_PRICE         OUT = 55
+	CANCEL_CALC_IMPLIED_VOLAT     OUT = 56
+	CANCEL_CALC_OPTION_PRICE      OUT = 57
+	REQ_GLOBAL_CANCEL             OUT = 58
+	REQ_MARKET_DATA_TYPE          OUT = 59
+	REQ_POSITIONS                 OUT = 61
+	REQ_ACCOUNT_SUMMARY           OUT = 62
+	CANCEL_ACCOUNT_SUMMARY        OUT = 63
+	CANCEL_POSITIONS              OUT = 64
+	VERIFY_REQUEST                OUT = 65
+	VERIFY_MESSAGE                OUT = 66
+	QUERY_DISPLAY_GROUPS          OUT = 67
+	SUBSCRIBE_TO_GROUP_EVENTS     OUT = 68
+	UPDATE_DISPLAY_GROUP          OUT = 69
+	UNSUBSCRIBE_FROM_GROUP_EVENTS OUT = 70
+	START_API                     OUT = 71
+	VERIFY_AND_AUTH_REQUEST       OUT = 72
+	VERIFY_AND_AUTH_MESSAGE       OUT = 73
+	REQ_POSITIONS_MULTI           OUT = 74
+	CANCEL_POSITIONS_MULTI        OUT = 75
+	REQ_ACCOUNT_UPDATES_MULTI     OUT = 76
+	CANCEL_ACCOUNT_UPDATES_MULTI  OUT = 77
+	REQ_SEC_DEF_OPT_PARAMS        OUT = 78
+	REQ_SOFT_DOLLAR_TIERS         OUT = 79
+	REQ_FAMILY_CODES              OUT = 80
+	REQ_MATCHING_SYMBOLS          OUT = 81
+	REQ_MKT_DEPTH_EXCHANGES       OUT = 82
+	REQ_SMART_COMPONENTS          OUT = 83
+	REQ_NEWS_ARTICLE              OUT = 84
+	REQ_NEWS_PROVIDERS            OUT = 85
+	REQ_HISTORICAL_NEWS           OUT = 86
+	REQ_HEAD_TIMESTAMP            OUT = 87
+	REQ_HISTOGRAM_DATA            OUT = 88
+	CANCEL_HISTOGRAM_DATA         OUT = 89
+	CANCEL_HEAD_TIMESTAMP         OUT = 90
+	REQ_MARKET_RULE               OUT = 91
+	REQ_PNL                       OUT = 92
+	CANCEL_PNL                    OUT = 93
+	REQ_PNL_SINGLE                OUT = 94
+	CANCEL_PNL_SINGLE             OUT = 95
+	REQ_HISTORICAL_TICKS          OUT = 96
+	REQ_TICK_BY_TICK_DATA         OUT = 97
+	CANCEL_TICK_BY_TICK_DATA      OUT = 98
+	REQ_COMPLETED_ORDERS          OUT = 99
+)
+
+const (
+	// 	MIN_SERVER_VER_REAL_TIME_BARS       = 34
+	// MIN_SERVER_VER_SCALE_ORDERS         = 35
+	// MIN_SERVER_VER_SNAPSHOT_MKT_DATA    = 35
+	// MIN_SERVER_VER_SSHORT_COMBO_LEGS    = 35
+	// MIN_SERVER_VER_WHAT_IF_ORDERS       = 36
+	// MIN_SERVER_VER_CONTRACT_CONID       = 37
+	MIN_SERVER_VER_PTA_ORDERS                 Version = 39
+	MIN_SERVER_VER_FUNDAMENTAL_DATA           Version = 40
+	MIN_SERVER_VER_DELTA_NEUTRAL              Version = 40
+	MIN_SERVER_VER_CONTRACT_DATA_CHAIN        Version = 40
+	MIN_SERVER_VER_SCALE_ORDERS2              Version = 40
+	MIN_SERVER_VER_ALGO_ORDERS                Version = 41
+	MIN_SERVER_VER_EXECUTION_DATA_CHAIN       Version = 42
+	MIN_SERVER_VER_NOT_HELD                   Version = 44
+	MIN_SERVER_VER_SEC_ID_TYPE                Version = 45
+	MIN_SERVER_VER_PLACE_ORDER_CONID          Version = 46
+	MIN_SERVER_VER_REQ_MKT_DATA_CONID         Version = 47
+	MIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT     Version = 49
+	MIN_SERVER_VER_REQ_CALC_OPTION_PRICE      Version = 50
+	MIN_SERVER_VER_SSHORTX_OLD                Version = 51
+	MIN_SERVER_VER_SSHORTX                    Version = 52
+	MIN_SERVER_VER_REQ_GLOBAL_CANCEL          Version = 53
+	MIN_SERVER_VER_HEDGE_ORDERS               Version = 54
+	MIN_SERVER_VER_REQ_MARKET_DATA_TYPE       Version = 55
+	MIN_SERVER_VER_OPT_OUT_SMART_ROUTING      Version = 56
+	MIN_SERVER_VER_SMART_COMBO_ROUTING_PARAMS Version = 57
+	MIN_SERVER_VER_DELTA_NEUTRAL_CONID        Version = 58
+	MIN_SERVER_VER_SCALE_ORDERS3              Version = 60
+	MIN_SERVER_VER_ORDER_COMBO_LEGS_PRICE     Version = 61
+	MIN_SERVER_VER_TRAILING_PERCENT           Version = 62
+	MIN_SERVER_VER_DELTA_NEUTRAL_OPEN_CLOSE   Version = 66
+	MIN_SERVER_VER_POSITIONS                  Version = 67
+	MIN_SERVER_VER_ACCOUNT_SUMMARY            Version = 67
+	MIN_SERVER_VER_TRADING_CLASS              Version = 68
+	MIN_SERVER_VER_SCALE_TABLE                Version = 69
+	MIN_SERVER_VER_LINKING                    Version = 70
+	MIN_SERVER_VER_ALGO_ID                    Version = 71
+	MIN_SERVER_VER_OPTIONAL_CAPABILITIES      Version = 72
+	MIN_SERVER_VER_ORDER_SOLICITED            Version = 73
+	MIN_SERVER_VER_LINKING_AUTH               Version = 74
+	MIN_SERVER_VER_PRIMARYEXCH                Version = 75
+	MIN_SERVER_VER_RANDOMIZE_SIZE_AND_PRICE   Version = 76
+	MIN_SERVER_VER_FRACTIONAL_POSITIONS       Version = 101
+	MIN_SERVER_VER_PEGGED_TO_BENCHMARK        Version = 102
+	MIN_SERVER_VER_MODELS_SUPPORT             Version = 103
+	MIN_SERVER_VER_SEC_DEF_OPT_PARAMS_REQ     Version = 104
+	MIN_SERVER_VER_EXT_OPERATOR               Version = 105
+	MIN_SERVER_VER_SOFT_DOLLAR_TIER           Version = 106
+	MIN_SERVER_VER_REQ_FAMILY_CODES           Version = 107
+	MIN_SERVER_VER_REQ_MATCHING_SYMBOLS       Version = 108
+	MIN_SERVER_VER_PAST_LIMIT                 Version = 109
+	MIN_SERVER_VER_MD_SIZE_MULTIPLIER         Version = 110
+	MIN_SERVER_VER_CASH_QTY                   Version = 111
+	MIN_SERVER_VER_REQ_MKT_DEPTH_EXCHANGES    Version = 112
+	MIN_SERVER_VER_TICK_NEWS                  Version = 113
+	MIN_SERVER_VER_REQ_SMART_COMPONENTS       Version = 114
+	MIN_SERVER_VER_REQ_NEWS_PROVIDERS         Version = 115
+	MIN_SERVER_VER_REQ_NEWS_ARTICLE           Version = 116
+	MIN_SERVER_VER_REQ_HISTORICAL_NEWS        Version = 117
+	MIN_SERVER_VER_REQ_HEAD_TIMESTAMP         Version = 118
+	MIN_SERVER_VER_REQ_HISTOGRAM              Version = 119
+	MIN_SERVER_VER_SERVICE_DATA_TYPE          Version = 120
+	MIN_SERVER_VER_AGG_GROUP                  Version = 121
+	MIN_SERVER_VER_UNDERLYING_INFO            Version = 122
+	MIN_SERVER_VER_CANCEL_HEADTIMESTAMP       Version = 123
+	MIN_SERVER_VER_SYNT_REALTIME_BARS         Version = 124
+	MIN_SERVER_VER_CFD_REROUTE                Version = 125
+	MIN_SERVER_VER_MARKET_RULES               Version = 126
+	MIN_SERVER_VER_PNL                        Version = 127
+	MIN_SERVER_VER_NEWS_QUERY_ORIGINS         Version = 128
+	MIN_SERVER_VER_UNREALIZED_PNL             Version = 129
+	MIN_SERVER_VER_HISTORICAL_TICKS           Version = 130
+	MIN_SERVER_VER_MARKET_CAP_PRICE           Version = 131
+	MIN_SERVER_VER_PRE_OPEN_BID_ASK           Version = 132
+	MIN_SERVER_VER_REAL_EXPIRATION_DATE       Version = 134
+	MIN_SERVER_VER_REALIZED_PNL               Version = 135
+	MIN_SERVER_VER_LAST_LIQUIDITY             Version = 136
+	MIN_SERVER_VER_TICK_BY_TICK               Version = 137
+	MIN_SERVER_VER_DECISION_MAKER             Version = 138
+	MIN_SERVER_VER_MIFID_EXECUTION            Version = 139
+	MIN_SERVER_VER_TICK_BY_TICK_IGNORE_SIZE   Version = 140
+	MIN_SERVER_VER_AUTO_PRICE_FOR_HEDGE       Version = 141
+	MIN_SERVER_VER_WHAT_IF_EXT_FIELDS         Version = 142
+	MIN_SERVER_VER_SCANNER_GENERIC_OPTS       Version = 143
+	MIN_SERVER_VER_API_BIND_ORDER             Version = 144
+	MIN_SERVER_VER_ORDER_CONTAINER            Version = 145
+	MIN_SERVER_VER_SMART_DEPTH                Version = 146
+	MIN_SERVER_VER_REMOVE_NULL_ALL_CASTING    Version = 147
+	MIN_SERVER_VER_D_PEG_ORDERS               Version = 148
+	MIN_SERVER_VER_MKT_DEPTH_PRIM_EXCHANGE    Version = 149
+	MIN_SERVER_VER_COMPLETED_ORDERS           Version = 150
+	MIN_SERVER_VER_PRICE_MGMT_ALGO            Version = 151
+
+	MIN_CLIENT_VER = 100
+	MAX_CLIENT_VER = MIN_SERVER_VER_PRICE_MGMT_ALGO
+)
+
+// tick const
+const (
+	BID_SIZE = iota
+	BID
+	ASK
+	ASK_SIZE
+	LAST
+	LAST_SIZE
+	HIGH
+	LOW
+	VOLUME
+	CLOSE
+	BID_OPTION_COMPUTATION
+	ASK_OPTION_COMPUTATION
+	LAST_OPTION_COMPUTATION
+	MODEL_OPTION
+	OPEN
+	LOW_13_WEEK
+	HIGH_13_WEEK
+	LOW_26_WEEK
+	HIGH_26_WEEK
+	LOW_52_WEEK
+	HIGH_52_WEEK
+	AVG_VOLUME
+	OPEN_INTEREST
+	OPTION_HISTORICAL_VOL
+	OPTION_IMPLIED_VOL
+	OPTION_BID_EXCH
+	OPTION_ASK_EXCH
+	OPTION_CALL_OPEN_INTEREST
+	OPTION_PUT_OPEN_INTEREST
+	OPTION_CALL_VOLUME
+	OPTION_PUT_VOLUME
+	INDEX_FUTURE_PREMIUM
+	BID_EXCH
+	ASK_EXCH
+	AUCTION_VOLUME
+	AUCTION_PRICE
+	AUCTION_IMBALANCE
+	MARK_PRICE
+	BID_EFP_COMPUTATION
+	ASK_EFP_COMPUTATION
+	LAST_EFP_COMPUTATION
+	OPEN_EFP_COMPUTATION
+	HIGH_EFP_COMPUTATION
+	LOW_EFP_COMPUTATION
+	CLOSE_EFP_COMPUTATION
+	LAST_TIMESTAMP
+	SHORTABLE
+	FUNDAMENTAL_RATIOS
+	RT_VOLUME
+	HALTED
+	BID_YIELD
+	ASK_YIELD
+	LAST_YIELD
+	CUST_OPTION_COMPUTATION
+	TRADE_COUNT
+	TRADE_RATE
+	VOLUME_RATE
+	LAST_RTH_TRADE
+	RT_HISTORICAL_VOL
+	IB_DIVIDENDS
+	BOND_FACTOR_MULTIPLIER
+	REGULATORY_IMBALANCE
+	NEWS_TICK
+	SHORT_TERM_VOLUME_3_MIN
+	SHORT_TERM_VOLUME_5_MIN
+	SHORT_TERM_VOLUME_10_MIN
+	DELAYED_BID
+	DELAYED_ASK
+	DELAYED_LAST
+	DELAYED_BID_SIZE
+	DELAYED_ASK_SIZE
+	DELAYED_LAST_SIZE
+	DELAYED_HIGH
+	DELAYED_LOW
+	DELAYED_VOLUME
+	DELAYED_CLOSE
+	DELAYED_OPEN
+	RT_TRD_VOLUME
+	CREDITMAN_MARK_PRICE
+	CREDITMAN_SLOW_MARK_PRICE
+	DELAYED_BID_OPTION
+	DELAYED_ASK_OPTION
+	DELAYED_LAST_OPTION
+	DELAYED_MODEL_OPTION
+	LAST_EXCH
+	LAST_REG_TIME
+	FUTURES_OPEN_INTEREST
+	AVG_OPT_VOLUME
+	DELAYED_LAST_TIMESTAMP
+	SHORTABLE_SHARES
+	NOT_SET
+)

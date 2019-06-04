@@ -182,32 +182,6 @@ func decodeString(field []byte) string {
 	return string(field)
 }
 
-// func decodeDate(field []byte) time.Time {
-// 	if len(field) != 8 || bytes.Equal(field, []byte{}) {
-// 		return time.Time{}
-// 	}
-// 	tstring := string(field)
-// 	t, err := time.Parse("20060102", tstring)
-// 	if err != nil {
-// 		log.Printf("errDeocodeDate: %v  tstring: %v", err, tstring)
-// 		return time.Time{}
-// 	}
-
-// 	return t
-// }
-
-// func decodeTime(field []byte, layout string) time.Time {
-// 	if bytes.Equal(field, []byte{}) {
-// 		return time.Time{}
-// 	}
-
-// 	t, err := time.Parse(layout, string(field))
-// 	if err != nil {
-// 		log.Panicf("errDeocodeTime: %v  format: %v", field, layout)
-// 	}
-// 	return t
-// }
-
 func encodeInt64(i int64) []byte {
 	bs := []byte(strconv.FormatInt(i, 10))
 	return bs

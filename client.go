@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -48,6 +49,7 @@ type IbClient struct {
 	wg               sync.WaitGroup
 }
 
+// NewIbClient create IbClient with wrapper
 func NewIbClient(wrapper IbWrapper) *IbClient {
 	ic := &IbClient{}
 	ic.SetWrapper(wrapper)
@@ -56,6 +58,12 @@ func NewIbClient(wrapper IbWrapper) *IbClient {
 	return ic
 }
 
+/* ConnState is the State of connection:
+DISCONNECTED
+CONNECTING
+CONNECTED
+REDIRECT
+*/
 func (ic *IbClient) ConnState() int {
 	return ic.conn.state
 }
@@ -66,19 +74,20 @@ func (ic *IbClient) setConnState(connState int) {
 	log.Infof("connState: %v -> %v", OldConnState, connState)
 }
 
+// GetReqID before request data or place order
 func (ic *IbClient) GetReqID() int64 {
-	ic.reqIDSeq++
+	atomic.AddInt64(&ic.reqIDSeq, 1)
 	return ic.reqIDSeq
 }
 
-//SetWrapper
+// Set the Wrapper to IbClient
 func (ic *IbClient) SetWrapper(wrapper IbWrapper) {
 	ic.wrapper = wrapper
 	log.Debug("setWrapper:", wrapper)
 	ic.decoder = &ibDecoder{wrapper: ic.wrapper}
 }
 
-//Connect
+// Connect try to connect the TWS or IB GateWay, after this, handshake should be call to get the connection done
 func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 
 	ic.host = host
@@ -93,7 +102,7 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 	// 连接后开始
 }
 
-//Disconnect
+// Disconnect
 func (ic *IbClient) Disconnect() error {
 
 	ic.terminatedSignal <- 1
@@ -134,7 +143,7 @@ func (ic *IbClient) startAPI() error {
 	return err
 }
 
-// handshake with the TWS or GateWay to ensure the version
+// HandShake with the TWS or GateWay to ensure the version
 func (ic *IbClient) HandShake() error {
 	log.Debug("Try to handShake with TWS or GateWay...")
 	var msg bytes.Buffer
@@ -330,7 +339,7 @@ func (ic *IbClient) ReqMktData(reqID int64, contract Contract, genericTickList s
 	ic.reqChan <- msg
 }
 
-//CancelMktData
+// CancelMktData
 func (ic *IbClient) CancelMktData(reqID int64) {
 	v := 2
 	fields := make([]interface{}, 0, 3)
@@ -345,7 +354,7 @@ func (ic *IbClient) CancelMktData(reqID int64) {
 	ic.reqChan <- msg
 }
 
-/*ReqMarketDataType
+/* ReqMarketDataType
 The API can receive frozen market data from Trader
         Workstation. Frozen market data is the last data recorded in our system.
         During normal trading hours, the API receives real-time market data. If

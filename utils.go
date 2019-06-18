@@ -19,6 +19,10 @@ const (
 	NO_VALID_ID int64   = -1
 )
 
+func init() {
+	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02T15:04:05.000000000Z07:00", FullTimestamp: true})
+}
+
 func bytesToTime(b []byte) time.Time {
 	format := "20060102 15:04:05 CST"
 	t := string(b)

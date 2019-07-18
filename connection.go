@@ -1,4 +1,4 @@
-/* connection handle the */
+/* connection handle the tcp socket to the TWS or IB Gateway*/
 
 package ibapi
 
@@ -20,8 +20,6 @@ type IbConnection struct {
 	numMsgSent   int
 	numBytesRecv int
 	numMsgRecv   int
-	// event        socketEvent
-	// em           extraMethods
 }
 
 func (ibconn *IbConnection) Write(msg []byte) (int, error) {
@@ -38,23 +36,10 @@ func (ibconn *IbConnection) Read(b []byte) (int, error) {
 	n, err := ibconn.conn.Read(b)
 	ibconn.numBytesRecv += n
 	ibconn.numMsgRecv++
-	// if err != nil {
-	// 	ibconn.event.hasError <- err
-	// 	// ibconn.reset()
-	// } else {
-	// 	ibconn.event.hasData <- b
-	// }
-
 	log.WithFields(log.Fields{"func": "read", "count": n}).Debug(b)
 
 	return n, err
 }
-
-// func (ibconn *IbConnection) Receive() {
-// 	buf := make([]byte, 0, 4096)
-// 	ibconn.Read(buf)
-// 	return buf
-// }
 
 func (ibconn *IbConnection) setState(state int) {
 	ibconn.state = state
@@ -65,15 +50,9 @@ func (ibconn *IbConnection) reset() {
 	ibconn.numBytesRecv = 0
 	ibconn.numMsgSent = 0
 	ibconn.numMsgRecv = 0
-	// ibconn.setState(DISCONNECTED)
-	// ibconn.event.connected = make(chan int, 10)
-	// ibconn.event.disconnected = make(chan int, 10)
-	// ibconn.event.hasError = make(chan error, 100)
-	// ibconn.event.hasData = make(chan []byte, 100)
 }
 
 func (ibconn *IbConnection) disconnect() error {
-	// ibconn.event.disconnected <- 1
 	return ibconn.conn.Close()
 }
 
@@ -96,7 +75,6 @@ func (ibconn *IbConnection) connect(host string, port int) error {
 	}
 
 	log.Println("TCP Socket Connected to:", ibconn.conn.RemoteAddr())
-	// ibconn.event.connected <- 1
 
 	return err
 }

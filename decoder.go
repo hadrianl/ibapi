@@ -72,84 +72,84 @@ func (d *ibDecoder) interpret(fs ...[]byte) {
 
 func (d *ibDecoder) setmsgID2process() {
 	d.msgID2process = map[IN]func([][]byte){
-		TICK_PRICE:              d.processTickPriceMsg,
-		TICK_SIZE:               d.wrapTickSize,
-		ORDER_STATUS:            d.processOrderStatusMsg,
-		ERR_MSG:                 d.wrapError,
-		OPEN_ORDER:              d.processOpenOrder,
-		ACCT_VALUE:              d.wrapUpdateAccountValue,
-		PORTFOLIO_VALUE:         d.processPortfolioValueMsg,
-		ACCT_UPDATE_TIME:        d.wrapUpdateAccountTime,
-		NEXT_VALID_ID:           d.wrapNextValidID,
-		CONTRACT_DATA:           d.processContractDataMsg,
-		EXECUTION_DATA:          d.processExecutionDataMsg,
-		MARKET_DEPTH:            d.wrapUpdateMktDepth,
-		MARKET_DEPTH_L2:         d.wrapUpdateMktDepthL2,
-		NEWS_BULLETINS:          d.wrapUpdateNewsBulletin,
-		MANAGED_ACCTS:           d.wrapManagedAccounts,
-		RECEIVE_FA:              d.wrapReceiveFA,
-		HISTORICAL_DATA:         d.processHistoricalDataMsg,
-		HISTORICAL_DATA_UPDATE:  d.processHistoricalDataUpdateMsg,
-		BOND_CONTRACT_DATA:      d.processBondContractDataMsg,
-		SCANNER_PARAMETERS:      d.wrapScannerParameters,
-		SCANNER_DATA:            d.processScannerDataMsg,
-		TICK_OPTION_COMPUTATION: d.processTickOptionComputationMsg,
-		TICK_GENERIC:            d.wrapTickGeneric,
-		TICK_STRING:             d.wrapTickString,
-		TICK_EFP:                d.wrapTickEFP,
-		CURRENT_TIME:            d.wrapCurrentTime,
-		REAL_TIME_BARS:          d.processRealTimeBarMsg,
-		FUNDAMENTAL_DATA:        d.wrapFundamentalData,
-		CONTRACT_DATA_END:       d.wrapContractDetailsEnd,
+		mTICK_PRICE:              d.processTickPriceMsg,
+		mTICK_SIZE:               d.wrapTickSize,
+		mORDER_STATUS:            d.processOrderStatusMsg,
+		mERR_MSG:                 d.wrapError,
+		mOPEN_ORDER:              d.processOpenOrder,
+		mACCT_VALUE:              d.wrapUpdateAccountValue,
+		mPORTFOLIO_VALUE:         d.processPortfolioValueMsg,
+		mACCT_UPDATE_TIME:        d.wrapUpdateAccountTime,
+		mNEXT_VALID_ID:           d.wrapNextValidID,
+		mCONTRACT_DATA:           d.processContractDataMsg,
+		mEXECUTION_DATA:          d.processExecutionDataMsg,
+		mMARKET_DEPTH:            d.wrapUpdateMktDepth,
+		mMARKET_DEPTH_L2:         d.wrapUpdateMktDepthL2,
+		mNEWS_BULLETINS:          d.wrapUpdateNewsBulletin,
+		mMANAGED_ACCTS:           d.wrapManagedAccounts,
+		mRECEIVE_FA:              d.wrapReceiveFA,
+		mHISTORICAL_DATA:         d.processHistoricalDataMsg,
+		mHISTORICAL_DATA_UPDATE:  d.processHistoricalDataUpdateMsg,
+		mBOND_CONTRACT_DATA:      d.processBondContractDataMsg,
+		mSCANNER_PARAMETERS:      d.wrapScannerParameters,
+		mSCANNER_DATA:            d.processScannerDataMsg,
+		mTICK_OPTION_COMPUTATION: d.processTickOptionComputationMsg,
+		mTICK_GENERIC:            d.wrapTickGeneric,
+		mTICK_STRING:             d.wrapTickString,
+		mTICK_EFP:                d.wrapTickEFP,
+		mCURRENT_TIME:            d.wrapCurrentTime,
+		mREAL_TIME_BARS:          d.processRealTimeBarMsg,
+		mFUNDAMENTAL_DATA:        d.wrapFundamentalData,
+		mCONTRACT_DATA_END:       d.wrapContractDetailsEnd,
 
-		ACCT_DOWNLOAD_END:                        d.wrapAccountDownloadEnd,
-		OPEN_ORDER_END:                           d.wrapOpenOrderEnd,
-		EXECUTION_DATA_END:                       d.wrapExecDetailsEnd,
-		DELTA_NEUTRAL_VALIDATION:                 d.processDeltaNeutralValidationMsg,
-		TICK_SNAPSHOT_END:                        d.wrapTickSnapshotEnd,
-		MARKET_DATA_TYPE:                         d.wrapMarketDataType,
-		COMMISSION_REPORT:                        d.processCommissionReportMsg,
-		POSITION_DATA:                            d.processPositionDataMsg,
-		POSITION_END:                             d.wrapPositionEnd,
-		ACCOUNT_SUMMARY:                          d.wrapAccountSummary,
-		ACCOUNT_SUMMARY_END:                      d.wrapAccountSummaryEnd,
-		VERIFY_MESSAGE_API:                       d.wrapVerifyMessageAPI,
-		VERIFY_COMPLETED:                         d.wrapVerifyCompleted,
-		DISPLAY_GROUP_LIST:                       d.wrapDisplayGroupList,
-		DISPLAY_GROUP_UPDATED:                    d.wrapDisplayGroupUpdated,
-		VERIFY_AND_AUTH_MESSAGE_API:              d.wrapVerifyAndAuthMessageAPI,
-		VERIFY_AND_AUTH_COMPLETED:                d.wrapVerifyAndAuthCompleted,
-		POSITION_MULTI:                           d.processPositionMultiMsg,
-		POSITION_MULTI_END:                       d.wrapPositionMultiEnd,
-		ACCOUNT_UPDATE_MULTI:                     d.wrapAccountUpdateMulti,
-		ACCOUNT_UPDATE_MULTI_END:                 d.wrapAccountUpdateMultiEnd,
-		SECURITY_DEFINITION_OPTION_PARAMETER:     d.processSecurityDefinitionOptionParameterMsg,
-		SECURITY_DEFINITION_OPTION_PARAMETER_END: d.wrapSecurityDefinitionOptionParameterEndMsg,
-		SOFT_DOLLAR_TIERS:                        d.processSoftDollarTiersMsg,
-		FAMILY_CODES:                             d.processFamilyCodesMsg,
-		SYMBOL_SAMPLES:                           d.processSymbolSamplesMsg,
-		SMART_COMPONENTS:                         d.processSmartComponents,
-		TICK_REQ_PARAMS:                          d.processTickReqParams,
-		MKT_DEPTH_EXCHANGES:                      d.processMktDepthExchanges,
-		HEAD_TIMESTAMP:                           d.processHeadTimestamp,
-		TICK_NEWS:                                d.processTickNews,
-		NEWS_PROVIDERS:                           d.processNewsProviders,
-		NEWS_ARTICLE:                             d.processNewsArticle,
-		HISTORICAL_NEWS:                          d.processHistoricalNews,
-		HISTORICAL_NEWS_END:                      d.processHistoricalNewsEnd,
-		HISTOGRAM_DATA:                           d.processHistogramData,
-		REROUTE_MKT_DATA_REQ:                     d.processRerouteMktDataReq,
-		REROUTE_MKT_DEPTH_REQ:                    d.processRerouteMktDepthReq,
-		MARKET_RULE:                              d.processMarketRuleMsg,
-		PNL:                                      d.processPnLMsg,
-		PNL_SINGLE:                               d.processPnLSingleMsg,
-		HISTORICAL_TICKS:                         d.processHistoricalTicks,
-		HISTORICAL_TICKS_BID_ASK:                 d.processHistoricalTicksBidAsk,
-		HISTORICAL_TICKS_LAST:                    d.processHistoricalTicksLast,
-		TICK_BY_TICK:                             d.processTickByTickMsg,
-		ORDER_BOUND:                              d.processOrderBoundMsg,
-		COMPLETED_ORDER:                          d.processCompletedOrderMsg,
-		COMPLETED_ORDERS_END:                     d.processCompletedOrdersEndMsg}
+		mACCT_DOWNLOAD_END:                        d.wrapAccountDownloadEnd,
+		mOPEN_ORDER_END:                           d.wrapOpenOrderEnd,
+		mEXECUTION_DATA_END:                       d.wrapExecDetailsEnd,
+		mDELTA_NEUTRAL_VALIDATION:                 d.processDeltaNeutralValidationMsg,
+		mTICK_SNAPSHOT_END:                        d.wrapTickSnapshotEnd,
+		mMARKET_DATA_TYPE:                         d.wrapMarketDataType,
+		mCOMMISSION_REPORT:                        d.processCommissionReportMsg,
+		mPOSITION_DATA:                            d.processPositionDataMsg,
+		mPOSITION_END:                             d.wrapPositionEnd,
+		mACCOUNT_SUMMARY:                          d.wrapAccountSummary,
+		mACCOUNT_SUMMARY_END:                      d.wrapAccountSummaryEnd,
+		mVERIFY_MESSAGE_API:                       d.wrapVerifyMessageAPI,
+		mVERIFY_COMPLETED:                         d.wrapVerifyCompleted,
+		mDISPLAY_GROUP_LIST:                       d.wrapDisplayGroupList,
+		mDISPLAY_GROUP_UPDATED:                    d.wrapDisplayGroupUpdated,
+		mVERIFY_AND_AUTH_MESSAGE_API:              d.wrapVerifyAndAuthMessageAPI,
+		mVERIFY_AND_AUTH_COMPLETED:                d.wrapVerifyAndAuthCompleted,
+		mPOSITION_MULTI:                           d.processPositionMultiMsg,
+		mPOSITION_MULTI_END:                       d.wrapPositionMultiEnd,
+		mACCOUNT_UPDATE_MULTI:                     d.wrapAccountUpdateMulti,
+		mACCOUNT_UPDATE_MULTI_END:                 d.wrapAccountUpdateMultiEnd,
+		mSECURITY_DEFINITION_OPTION_PARAMETER:     d.processSecurityDefinitionOptionParameterMsg,
+		mSECURITY_DEFINITION_OPTION_PARAMETER_END: d.wrapSecurityDefinitionOptionParameterEndMsg,
+		mSOFT_DOLLAR_TIERS:                        d.processSoftDollarTiersMsg,
+		mFAMILY_CODES:                             d.processFamilyCodesMsg,
+		mSYMBOL_SAMPLES:                           d.processSymbolSamplesMsg,
+		mSMART_COMPONENTS:                         d.processSmartComponents,
+		mTICK_REQ_PARAMS:                          d.processTickReqParams,
+		mMKT_DEPTH_EXCHANGES:                      d.processMktDepthExchanges,
+		mHEAD_TIMESTAMP:                           d.processHeadTimestamp,
+		mTICK_NEWS:                                d.processTickNews,
+		mNEWS_PROVIDERS:                           d.processNewsProviders,
+		mNEWS_ARTICLE:                             d.processNewsArticle,
+		mHISTORICAL_NEWS:                          d.processHistoricalNews,
+		mHISTORICAL_NEWS_END:                      d.processHistoricalNewsEnd,
+		mHISTOGRAM_DATA:                           d.processHistogramData,
+		mREROUTE_MKT_DATA_REQ:                     d.processRerouteMktDataReq,
+		mREROUTE_MKT_DEPTH_REQ:                    d.processRerouteMktDepthReq,
+		mMARKET_RULE:                              d.processMarketRuleMsg,
+		mPNL:                                      d.processPnLMsg,
+		mPNL_SINGLE:                               d.processPnLSingleMsg,
+		mHISTORICAL_TICKS:                         d.processHistoricalTicks,
+		mHISTORICAL_TICKS_BID_ASK:                 d.processHistoricalTicksBidAsk,
+		mHISTORICAL_TICKS_LAST:                    d.processHistoricalTicksLast,
+		mTICK_BY_TICK:                             d.processTickByTickMsg,
+		mORDER_BOUND:                              d.processOrderBoundMsg,
+		mCOMPLETED_ORDER:                          d.processCompletedOrderMsg,
+		mCOMPLETED_ORDERS_END:                     d.processCompletedOrdersEndMsg}
 
 }
 
@@ -441,10 +441,10 @@ func (d *ibDecoder) processTickPriceMsg(f [][]byte) {
 	attrib := TickAttrib{}
 	attrib.CanAutoExecute = attrMask == 1
 
-	if d.version >= MIN_SERVER_VER_PAST_LIMIT {
+	if d.version >= mMIN_SERVER_VER_PAST_LIMIT {
 		attrib.CanAutoExecute = attrMask&0x1 != 0
 		attrib.PastLimit = attrMask&0x2 != 0
-		if d.version >= MIN_SERVER_VER_PRE_OPEN_BID_ASK {
+		if d.version >= mMIN_SERVER_VER_PRE_OPEN_BID_ASK {
 			attrib.PreOpen = attrMask&0x4 != 0
 		}
 	}
@@ -476,7 +476,7 @@ func (d *ibDecoder) processTickPriceMsg(f [][]byte) {
 }
 
 func (d *ibDecoder) processOrderStatusMsg(f [][]byte) {
-	if d.version < MIN_SERVER_VER_MARKET_CAP_PRICE {
+	if d.version < mMIN_SERVER_VER_MARKET_CAP_PRICE {
 		f = f[1:]
 	}
 	orderID := decodeInt(f[0])
@@ -495,7 +495,7 @@ func (d *ibDecoder) processOrderStatusMsg(f [][]byte) {
 	whyHeld := decodeString(f[9])
 
 	var mktCapPrice float64
-	if d.version >= MIN_SERVER_VER_MARKET_CAP_PRICE {
+	if d.version >= mMIN_SERVER_VER_MARKET_CAP_PRICE {
 		mktCapPrice = decodeFloat(f[10])
 	} else {
 		mktCapPrice = float64(0)
@@ -508,7 +508,7 @@ func (d *ibDecoder) processOrderStatusMsg(f [][]byte) {
 func (d *ibDecoder) processOpenOrder(f [][]byte) {
 
 	var version int64
-	if d.version < MIN_SERVER_VER_ORDER_CONTAINER {
+	if d.version < mMIN_SERVER_VER_ORDER_CONTAINER {
 		version = decodeInt(f[0])
 		f = f[1:]
 	} else {
@@ -541,7 +541,7 @@ func (d *ibDecoder) processOpenOrder(f [][]byte) {
 	}
 
 	o.Action = decodeString(f[10])
-	if d.version >= MIN_SERVER_VER_FRACTIONAL_POSITIONS {
+	if d.version >= mMIN_SERVER_VER_FRACTIONAL_POSITIONS {
 		o.TotalQuantity = decodeFloat(f[11])
 	} else {
 		o.TotalQuantity = float64(decodeInt(f[11]))
@@ -583,7 +583,7 @@ func (d *ibDecoder) processOpenOrder(f [][]byte) {
 	o.FAPercentage = decodeString(f[30])
 	o.FAProfile = decodeString(f[31])
 
-	if d.version >= MIN_SERVER_VER_MODELS_SUPPORT {
+	if d.version >= mMIN_SERVER_VER_MODELS_SUPPORT {
 		o.ModelCode = decodeString(f[32])
 		f = f[1:]
 	}
@@ -598,7 +598,7 @@ func (d *ibDecoder) processOpenOrder(f [][]byte) {
 	o.ShortSaleSlot = decodeInt(f[36])
 	o.DesignatedLocation = decodeString(f[37])
 
-	if d.version == MIN_SERVER_VER_SSHORTX_OLD {
+	if d.version == mMIN_SERVER_VER_SSHORTX_OLD {
 		f = f[1:]
 	} else if version >= 23 {
 		o.ExemptCode = decodeInt(f[38])
@@ -782,7 +782,7 @@ func (d *ibDecoder) processOpenOrder(f [][]byte) {
 
 	orderState.Status = decodeString(f[71])
 
-	if d.version >= MIN_SERVER_VER_WHAT_IF_EXT_FIELDS {
+	if d.version >= mMIN_SERVER_VER_WHAT_IF_EXT_FIELDS {
 		orderState.InitialMarginBefore = decodeString(f[72])
 		orderState.MaintenanceMarginBefore = decodeString(f[73])
 		orderState.EquityWithLoanBefore = decodeString(f[74])
@@ -808,7 +808,7 @@ func (d *ibDecoder) processOpenOrder(f [][]byte) {
 		f = f[2:]
 	}
 
-	if d.version >= MIN_SERVER_VER_PEGGED_TO_BENCHMARK {
+	if d.version >= mMIN_SERVER_VER_PEGGED_TO_BENCHMARK {
 		if o.OrderType == "PEG BENCH" {
 			o.ReferenceContractID = decodeInt(f[80])
 			o.IsPeggedChangeAmountDecrease = decodeBool(f[81])
@@ -844,7 +844,7 @@ func (d *ibDecoder) processOpenOrder(f [][]byte) {
 		f = f[9:]
 	}
 
-	if d.version >= MIN_SERVER_VER_SOFT_DOLLAR_TIER {
+	if d.version >= mMIN_SERVER_VER_SOFT_DOLLAR_TIER {
 		name := decodeString(f[80])
 		value := decodeString(f[81])
 		displayName := decodeString(f[82])
@@ -852,27 +852,27 @@ func (d *ibDecoder) processOpenOrder(f [][]byte) {
 		f = f[3:]
 	}
 
-	if d.version >= MIN_SERVER_VER_CASH_QTY {
+	if d.version >= mMIN_SERVER_VER_CASH_QTY {
 		o.CashQty = decodeFloat(f[80])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_AUTO_PRICE_FOR_HEDGE {
+	if d.version >= mMIN_SERVER_VER_AUTO_PRICE_FOR_HEDGE {
 		o.DontUseAutoPriceForHedge = decodeBool(f[80])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_ORDER_CONTAINER {
+	if d.version >= mMIN_SERVER_VER_ORDER_CONTAINER {
 		o.IsOmsContainer = decodeBool(f[80])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_D_PEG_ORDERS {
+	if d.version >= mMIN_SERVER_VER_D_PEG_ORDERS {
 		o.DiscretionaryUpToLimitPrice = decodeBool(f[80])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_PRICE_MGMT_ALGO {
+	if d.version >= mMIN_SERVER_VER_PRICE_MGMT_ALGO {
 		o.UsePriceMgmtAlgo = decodeBool(f[80])
 		f = f[1:]
 	}
@@ -906,7 +906,7 @@ func (d *ibDecoder) processPortfolioValueMsg(f [][]byte) {
 		f = f[1:]
 	}
 	var position float64
-	if d.version >= MIN_SERVER_VER_FRACTIONAL_POSITIONS {
+	if d.version >= mMIN_SERVER_VER_FRACTIONAL_POSITIONS {
 		position = decodeFloat(f[9])
 	} else {
 		position = float64(decodeInt(f[9]))
@@ -960,7 +960,7 @@ func (d *ibDecoder) processContractDataMsg(f [][]byte) {
 	cd.Contract.TradingClass = decodeString(f[10])
 	cd.Contract.ContractID = decodeInt(f[11])
 	cd.MinTick = decodeFloat(f[12])
-	if d.version >= MIN_SERVER_VER_MD_SIZE_MULTIPLIER {
+	if d.version >= mMIN_SERVER_VER_MD_SIZE_MULTIPLIER {
 		cd.MdSizeMultiplier = decodeInt(f[13])
 		f = f[1:]
 	}
@@ -1010,23 +1010,23 @@ func (d *ibDecoder) processContractDataMsg(f [][]byte) {
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_AGG_GROUP {
+	if d.version >= mMIN_SERVER_VER_AGG_GROUP {
 		cd.AggGroup = decodeInt(f[17])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_UNDERLYING_INFO {
+	if d.version >= mMIN_SERVER_VER_UNDERLYING_INFO {
 		cd.UnderSymbol = decodeString(f[17])
 		cd.UnderSecurityType = decodeString(f[18])
 		f = f[2:]
 	}
 
-	if d.version >= MIN_SERVER_VER_MARKET_RULES {
+	if d.version >= mMIN_SERVER_VER_MARKET_RULES {
 		cd.MarketRuleIDs = decodeString(f[17])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_REAL_EXPIRATION_DATE {
+	if d.version >= mMIN_SERVER_VER_REAL_EXPIRATION_DATE {
 		cd.RealExpirationDate = decodeString(f[17])
 	}
 
@@ -1074,7 +1074,7 @@ func (d *ibDecoder) processBondContractDataMsg(f [][]byte) {
 	c.Contract.ContractID = decodeInt(f[18])
 	c.MinTick = decodeFloat(f[19])
 
-	if d.version >= MIN_SERVER_VER_MD_SIZE_MULTIPLIER {
+	if d.version >= mMIN_SERVER_VER_MD_SIZE_MULTIPLIER {
 		c.MdSizeMultiplier = decodeInt(f[20])
 		f = f[1:]
 	}
@@ -1109,12 +1109,12 @@ func (d *ibDecoder) processBondContractDataMsg(f [][]byte) {
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_AGG_GROUP {
+	if d.version >= mMIN_SERVER_VER_AGG_GROUP {
 		c.AggGroup = decodeInt(f[26])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_MARKET_RULES {
+	if d.version >= mMIN_SERVER_VER_MARKET_RULES {
 		c.MarketRuleIDs = decodeString(f[26])
 		f = f[1:]
 	}
@@ -1155,7 +1155,7 @@ func (d *ibDecoder) processScannerDataMsg(f [][]byte) {
 }
 func (d *ibDecoder) processExecutionDataMsg(f [][]byte) {
 	var v int64
-	if d.version < MIN_SERVER_VER_LAST_LIQUIDITY {
+	if d.version < mMIN_SERVER_VER_LAST_LIQUIDITY {
 		v = decodeInt(f[0])
 		f = f[1:]
 	} else {
@@ -1222,11 +1222,11 @@ func (d *ibDecoder) processExecutionDataMsg(f [][]byte) {
 		f = f[2:]
 	}
 
-	if d.version >= MIN_SERVER_VER_MODELS_SUPPORT {
+	if d.version >= mMIN_SERVER_VER_MODELS_SUPPORT {
 		e.ModelCode = decodeString(f[20])
 		f = f[1:]
 	}
-	if d.version >= MIN_SERVER_VER_LAST_LIQUIDITY {
+	if d.version >= mMIN_SERVER_VER_LAST_LIQUIDITY {
 		e.LastLiquidity = decodeInt(f[20])
 	}
 
@@ -1234,7 +1234,7 @@ func (d *ibDecoder) processExecutionDataMsg(f [][]byte) {
 
 }
 func (d *ibDecoder) processHistoricalDataMsg(f [][]byte) {
-	if d.version < MIN_SERVER_VER_SYNT_REALTIME_BARS {
+	if d.version < mMIN_SERVER_VER_SYNT_REALTIME_BARS {
 		f = f[1:]
 	}
 
@@ -1252,7 +1252,7 @@ func (d *ibDecoder) processHistoricalDataMsg(f [][]byte) {
 		bar.Volume = decodeFloat(f[9])
 		bar.Average = decodeFloat(f[10])
 
-		if d.version < MIN_SERVER_VER_SYNT_REALTIME_BARS {
+		if d.version < mMIN_SERVER_VER_SYNT_REALTIME_BARS {
 			f = f[1:]
 		}
 		bar.BarCount = decodeInt(f[11])
@@ -1406,7 +1406,7 @@ func (d *ibDecoder) processPositionDataMsg(f [][]byte) {
 	}
 
 	var p float64
-	if d.version >= MIN_SERVER_VER_FRACTIONAL_POSITIONS {
+	if d.version >= mMIN_SERVER_VER_FRACTIONAL_POSITIONS {
 		p = decodeFloat(f[12])
 	} else {
 		p = float64(decodeInt(f[12]))
@@ -1557,7 +1557,7 @@ func (d *ibDecoder) processMktDepthExchanges(f [][]byte) {
 		desc := DepthMktDataDescription{}
 		desc.Exchange = decodeString(f[1])
 		desc.SecurityType = decodeString(f[2])
-		if d.version >= MIN_SERVER_VER_SERVICE_DATA_TYPE {
+		if d.version >= mMIN_SERVER_VER_SERVICE_DATA_TYPE {
 			desc.ListingExchange = decodeString(f[3])
 			desc.SecurityType = decodeString(f[4])
 			desc.AggGroup = decodeInt(f[5])
@@ -1672,12 +1672,12 @@ func (d *ibDecoder) processPnLMsg(f [][]byte) {
 	var unrealizedPnL float64
 	var realizedPnL float64
 
-	if d.version >= MIN_SERVER_VER_UNREALIZED_PNL {
+	if d.version >= mMIN_SERVER_VER_UNREALIZED_PNL {
 		unrealizedPnL = decodeFloat(f[2])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_REALIZED_PNL {
+	if d.version >= mMIN_SERVER_VER_REALIZED_PNL {
 		realizedPnL = decodeFloat(f[2])
 		f = f[1:]
 	}
@@ -1692,12 +1692,12 @@ func (d *ibDecoder) processPnLSingleMsg(f [][]byte) {
 	var unrealizedPnL float64
 	var realizedPnL float64
 
-	if d.version >= MIN_SERVER_VER_UNREALIZED_PNL {
+	if d.version >= mMIN_SERVER_VER_UNREALIZED_PNL {
 		unrealizedPnL = decodeFloat(f[3])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_REALIZED_PNL {
+	if d.version >= mMIN_SERVER_VER_REALIZED_PNL {
 		realizedPnL = decodeFloat(f[3])
 		f = f[1:]
 	}
@@ -1864,7 +1864,7 @@ func (d *ibDecoder) processCompletedOrderMsg(f [][]byte) {
 	}
 
 	o.Action = decodeString(f[9])
-	if d.version >= MIN_SERVER_VER_FRACTIONAL_POSITIONS {
+	if d.version >= mMIN_SERVER_VER_FRACTIONAL_POSITIONS {
 		o.TotalQuantity = decodeFloat(f[10])
 	} else {
 		o.TotalQuantity = float64(decodeInt(f[10]))
@@ -1904,7 +1904,7 @@ func (d *ibDecoder) processCompletedOrderMsg(f [][]byte) {
 	o.FAPercentage = decodeString(f[28])
 	o.FAProfile = decodeString(f[29])
 
-	if d.version >= MIN_SERVER_VER_MODELS_SUPPORT {
+	if d.version >= mMIN_SERVER_VER_MODELS_SUPPORT {
 		o.ModelCode = decodeString(f[30])
 		f = f[1:]
 	}
@@ -1919,7 +1919,7 @@ func (d *ibDecoder) processCompletedOrderMsg(f [][]byte) {
 	o.ShortSaleSlot = decodeInt(f[34])
 	o.DesignatedLocation = decodeString(f[35])
 
-	if d.version == MIN_SERVER_VER_SSHORTX_OLD {
+	if d.version == mMIN_SERVER_VER_SSHORTX_OLD {
 		f = f[1:]
 	} else if version >= 23 {
 		o.ExemptCode = decodeInt(f[36])
@@ -2105,7 +2105,7 @@ func (d *ibDecoder) processCompletedOrderMsg(f [][]byte) {
 		f = f[2:]
 	}
 
-	if d.version >= MIN_SERVER_VER_PEGGED_TO_BENCHMARK {
+	if d.version >= mMIN_SERVER_VER_PEGGED_TO_BENCHMARK {
 		if o.OrderType == "PEG BENCH" {
 			o.ReferenceContractID = decodeInt(f[62])
 			o.IsPeggedChangeAmountDecrease = decodeBool(f[63])
@@ -2134,17 +2134,17 @@ func (d *ibDecoder) processCompletedOrderMsg(f [][]byte) {
 	o.TrailStopPrice = decodeFloat(f[62])
 	o.LimitPriceOffset = decodeFloat(f[63])
 
-	if d.version >= MIN_SERVER_VER_CASH_QTY {
+	if d.version >= mMIN_SERVER_VER_CASH_QTY {
 		o.CashQty = decodeFloat(f[64])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_AUTO_PRICE_FOR_HEDGE {
+	if d.version >= mMIN_SERVER_VER_AUTO_PRICE_FOR_HEDGE {
 		o.DontUseAutoPriceForHedge = decodeBool(f[64])
 		f = f[1:]
 	}
 
-	if d.version >= MIN_SERVER_VER_ORDER_CONTAINER {
+	if d.version >= mMIN_SERVER_VER_ORDER_CONTAINER {
 		o.IsOmsContainer = decodeBool(f[64])
 		f = f[1:]
 	}

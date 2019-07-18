@@ -9,14 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// ConnectionState
-const (
-	DISCONNECTED = iota
-	CONNECTING
-	CONNECTED
-	REDIRECT
-)
-
 // IbConnection wrap the tcp connection with TWS or Gateway
 type IbConnection struct {
 	host         string
@@ -31,19 +23,6 @@ type IbConnection struct {
 	// event        socketEvent
 	// em           extraMethods
 }
-
-// type socketEvent struct {
-// 	connected    chan int
-// 	disconnected chan int
-// 	hasError     chan error
-// 	hasData      chan []byte
-// }
-
-// type extraMethods interface {
-// 	priceSizeTick()
-// 	tcpDataArrived()
-// 	tcpDataProcessed()
-// }
 
 func (ibconn *IbConnection) Write(msg []byte) (int, error) {
 	n, err := ibconn.conn.Write(msg)

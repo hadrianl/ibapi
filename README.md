@@ -11,14 +11,14 @@ pure golang, Unofficial version, smilar to the official python version
 import (
     . "github.com/hadrianl/ibapi"
     "time"
-	log "github.com/sirupsen/logrus"
+    log "github.com/sirupsen/logrus"
 )
 
 func main(){
     var err error
     ibwrapper := Wrapper{}
     ic := NewIbClient(ibwrapper)
-    err = ic.Connect("172.0.0.1", 7496, 0)
+    err = ic.Connect("172.0.0.1", 4002, 0)
     if err != nil {
         log.Panic("Connect failed:", err)
         return

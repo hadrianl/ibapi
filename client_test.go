@@ -29,6 +29,8 @@ func TestClient(t *testing.T) {
 	ic.ReqAutoOpenOrders(true)
 	ic.ReqAccountUpdates(true, "")
 	ic.ReqExecutions(ic.GetReqID(), ExecutionFilter{})
+	hsi1907 := Contract{ContractID: 369009605, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
+	ic.ReqHistoricalData(ic.GetReqID(), hsi1907, "", "4800 S", "1 min", "TRADES", false, 1, true, nil)
 
 	ic.Run()
 	time.Sleep(time.Second * 10)

@@ -35,7 +35,7 @@ type IbClient struct {
 	reqIDSeq         int64
 	reqChan          chan []byte
 	errChan          chan error
-	msgChan          chan [][]byte
+	msgChan          chan []byte
 	timeChan         chan time.Time
 	terminatedSignal chan int
 	clientVersion    Version
@@ -186,7 +186,8 @@ func (ic *IbClient) HandShake() error {
 comfirmReadyLoop:
 	for {
 		select {
-		case f := <-ic.msgChan:
+		case m := <-ic.msgChan:
+			f := splitMsgBytes(m)
 			MsgID, _ := strconv.ParseInt(string(f[0]), 10, 64)
 			ic.decoder.interpret(f...)
 			log.Debug(MsgID)
@@ -217,7 +218,7 @@ func (ic *IbClient) reset() {
 	ic.writer = bufio.NewWriter(ic.conn)
 	ic.reqChan = make(chan []byte, 10)
 	ic.errChan = make(chan error, 10)
-	ic.msgChan = make(chan [][]byte, 100)
+	ic.msgChan = make(chan []byte, 100)
 	ic.terminatedSignal = make(chan int, 3)
 	ic.wg = sync.WaitGroup{}
 
@@ -2590,26 +2591,49 @@ func (ic *IbClient) goReceive() {
 
 	ic.wg.Add(1)
 
-	for {
-		msgBytes, err := readMsgBytes(ic.reader)
-		// fmt.Printf("msgBuf: %v err: %v", msgBuf, err)
-		if err, ok := err.(*net.OpError); ok {
-			if !err.Temporary() {
-				log.Debugf("errgoReceive: %v", err)
-				break
-			}
-			log.Errorf("errgoReceive Temporary: %v", err)
-			ic.reader.Reset(ic.conn)
-		} else if err != nil {
-			ic.errChan <- err
-			ic.reader.Reset(ic.conn)
-		}
+	// for {
+	// 	msgBytes, err := readMsgBytes(ic.reader)
+	// 	// fmt.Printf("msgBuf: %v err: %v", msgBuf, err)
+	// 	if err, ok := err.(*net.OpError); ok {
+	// 		if !err.Temporary() {
+	// 			log.Debugf("errgoReceive: %v", err)
+	// 			break
+	// 		}
+	// 		log.Errorf("errgoReceive Temporary: %v", err)
+	// 		ic.reader.Reset(ic.conn)
+	// 	} else if err != nil {
+	// 		ic.errChan <- err
+	// 		ic.reader.Reset(ic.conn)
+	// 	}
 
-		if msgBytes != nil {
-			fields := splitMsgBytes(msgBytes)
-			ic.msgChan <- fields
-		}
+	// 	if msgBytes != nil {
+	// 		ic.msgChan <- msgBytes
+	// 	}
 
+	// }
+
+	scanner := bufio.NewScanner(ic.reader)
+	scanner.Split(scanFields)
+
+scanLoop:
+	for scanner.Scan() {
+		msgBytes := scanner.Bytes()
+		ic.msgChan <- msgBytes
+	}
+
+	if _, ok := <-ic.terminatedSignal; ok {
+		return
+	}
+
+	err := scanner.Err()
+	if err, ok := err.(*net.OpError); ok && !err.Temporary() {
+		log.Panicf("errgoReceive: %v", err)
+		return
+	} else if err != nil {
+		log.Errorf("errgoReceive Temporary: %v", err)
+		ic.errChan <- err
+		ic.reader.Reset(ic.conn)
+		goto scanLoop
 	}
 }
 
@@ -2624,7 +2648,8 @@ func (ic *IbClient) goDecode() {
 decodeLoop:
 	for {
 		select {
-		case f := <-ic.msgChan:
+		case m := <-ic.msgChan:
+			f := splitMsgBytes(m)
 			ic.decoder.interpret(f...)
 		case e := <-ic.errChan:
 			log.Error(e)

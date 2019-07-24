@@ -71,6 +71,23 @@ func readMsgBytes(reader *bufio.Reader) ([]byte, error) {
 
 }
 
+func scanFields(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) < 4 {
+		return 0, nil, nil
+	}
+
+	totalSize := int(binary.BigEndian.Uint32(data[:4])) + 4
+
+	if totalSize > len(data) {
+		return 0, nil, nil
+	}
+
+	msgBytes := make([]byte, totalSize-4, totalSize-4)
+	copy(msgBytes, data[4:totalSize])
+
+	return totalSize, msgBytes, nil
+}
+
 func field2Bytes(msg interface{}) []byte {
 	var b []byte
 

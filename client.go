@@ -252,7 +252,7 @@ Call this function to request market data. The market data
         mktDataOptions:TagValueList - For internal use only.
             Use default value XYZ.
 */
-func (ic *IbClient) ReqMktData(reqID int64, contract Contract, genericTickList string, snapshot bool, regulatorySnapshot bool, mktDataOptions []TagValue) {
+func (ic *IbClient) ReqMktData(reqID int64, contract *Contract, genericTickList string, snapshot bool, regulatorySnapshot bool, mktDataOptions []TagValue) {
 	switch {
 	case ic.serverVersion < mMIN_SERVER_VER_DELTA_NEUTRAL && contract.DeltaNeutralContract != nil:
 		ic.wrapper.Error(reqID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support delta-neutral orders.")
@@ -1530,27 +1530,27 @@ func (ic *IbClient) ReqMktDepthExchanges() {
 	ic.reqChan <- msg
 }
 
-/*reqMktDepth
+/*ReqMktDepth
 Call this function to request market depth for a specific
-        contract. The market depth will be returned by the updateMktDepth() and
-        updateMktDepthL2() events.
+contract. The market depth will be returned by the updateMktDepth() and
+updateMktDepthL2() events.
 
-        Requests the contract's market depth (order book). Note this request must be
-        direct-routed to an exchange and not smart-routed. The number of simultaneous
-        market depth requests allowed in an account is calculated based on a formula
-        that looks at an accounts equity, commissions, and quote booster packs.
+Requests the contract's market depth (order book). Note this request must be
+direct-routed to an exchange and not smart-routed. The number of simultaneous
+market depth requests allowed in an account is calculated based on a formula
+that looks at an accounts equity, commissions, and quote booster packs.
 
-        reqId:TickerId - The ticker id. Must be a unique value. When the market
-            depth data returns, it will be identified by this tag. This is
-            also used when canceling the market depth
-        contract:Contact - This structure contains a description of the contract
-            for which market depth data is being requested.
-        numRows:int - Specifies the numRowsumber of market depth rows to display.
-        isSmartDepth:bool - specifies SMART depth request
-        mktDepthOptions:TagValueList - For internal use only. Use default value
-            XYZ.
+reqId:TickerId - The ticker id. Must be a unique value. When the market
+	depth data returns, it will be identified by this tag. This is
+	also used when canceling the market depth
+contract:Contact - This structure contains a description of the contract
+	for which market depth data is being requested.
+numRows:int - Specifies the numRowsumber of market depth rows to display.
+isSmartDepth:bool - specifies SMART depth request
+mktDepthOptions:TagValueList - For internal use only. Use default value
+	XYZ.
 */
-func (ic *IbClient) reqMktDepth(reqID int64, contract *Contract, numRows int, isSmartDepth bool, mktDepthOptions []TagValue) {
+func (ic *IbClient) ReqMktDepth(reqID int64, contract *Contract, numRows int, isSmartDepth bool, mktDepthOptions []TagValue) {
 
 	switch {
 	case ic.serverVersion < mMIN_SERVER_VER_TRADING_CLASS:
@@ -1577,6 +1577,7 @@ func (ic *IbClient) reqMktDepth(reqID int64, contract *Contract, numRows int, is
 
 	fields = append(fields,
 		contract.Symbol,
+		contract.SecurityType,
 		contract.Expiry,
 		contract.Strike,
 		contract.Right,
@@ -1772,7 +1773,7 @@ Requests contracts' historical data. When requesting historical data, a
                 1/1/1970 GMT.
         chartOptions:TagValueList - For internal use only. Use default value XYZ.
 */
-func (ic *IbClient) ReqHistoricalData(reqID int64, contract Contract, endDateTime string, duration string, barSize string, whatToShow string, useRTH bool, formatDate int, keepUpToDate bool, chartOptions []TagValue) {
+func (ic *IbClient) ReqHistoricalData(reqID int64, contract *Contract, endDateTime string, duration string, barSize string, whatToShow string, useRTH bool, formatDate int, keepUpToDate bool, chartOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_TRADING_CLASS {
 		if contract.TradingClass != "" || contract.ContractID > 0 {
 			ic.wrapper.Error(reqID, UPDATE_TWS.code, UPDATE_TWS.msg)
@@ -2587,30 +2588,14 @@ requestLoop:
 func (ic *IbClient) goReceive() {
 	log.Info("Start goReceive!")
 	defer log.Info("End goReceive!")
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorf("goReceive has unexpected error: %v", err)
+		}
+	}()
 	defer ic.wg.Done()
 
 	ic.wg.Add(1)
-
-	// for {
-	// 	msgBytes, err := readMsgBytes(ic.reader)
-	// 	// fmt.Printf("msgBuf: %v err: %v", msgBuf, err)
-	// 	if err, ok := err.(*net.OpError); ok {
-	// 		if !err.Temporary() {
-	// 			log.Debugf("errgoReceive: %v", err)
-	// 			break
-	// 		}
-	// 		log.Errorf("errgoReceive Temporary: %v", err)
-	// 		ic.reader.Reset(ic.conn)
-	// 	} else if err != nil {
-	// 		ic.errChan <- err
-	// 		ic.reader.Reset(ic.conn)
-	// 	}
-
-	// 	if msgBytes != nil {
-	// 		ic.msgChan <- msgBytes
-	// 	}
-
-	// }
 
 	scanner := bufio.NewScanner(ic.reader)
 	scanner.Split(scanFields)
@@ -2634,6 +2619,8 @@ scanLoop:
 		ic.errChan <- err
 		ic.reader.Reset(ic.conn)
 		goto scanLoop
+	} else {
+		panic(scanner.Err())
 	}
 }
 

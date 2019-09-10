@@ -1835,7 +1835,21 @@ func (d *ibDecoder) processOrderBoundMsg(f [][]byte) {
 }
 
 func (d *ibDecoder) processMarketDepthL2Msg(f [][]byte) {
+	reqID := decodeInt(f[2])
 
+	position := decodeInt(f[3])
+	marketMaker := decodeString(f[4])
+	operation := decodeInt(f[5])
+	side := decodeInt(f[6])
+	price := decodeFloat(f[7])
+	size := decodeInt(f[8])
+	isSmartDepth := false
+
+	if d.version >= mMIN_SERVER_VER_SMART_DEPTH {
+		isSmartDepth = decodeBool(f[9])
+	}
+
+	d.wrapper.UpdateMktDepthL2(reqID, position, marketMaker, operation, side, price, size, isSmartDepth)
 }
 
 func (d *ibDecoder) processCompletedOrderMsg(f [][]byte) {

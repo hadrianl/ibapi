@@ -1275,7 +1275,8 @@ func (d *ibDecoder) processHistoricalDataUpdateMsg(f [][]byte) {
 	bar.Close = decodeFloat(f[4])
 	bar.High = decodeFloat(f[5])
 	bar.Low = decodeFloat(f[6])
-	bar.Volume = decodeFloat(f[7])
+	bar.Average = decodeFloat(f[7])
+	bar.Volume = decodeFloat(f[8])
 
 	d.wrapper.HistoricalDataUpdate(reqID, bar)
 

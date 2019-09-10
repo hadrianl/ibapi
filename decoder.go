@@ -1053,8 +1053,10 @@ func (d *ibDecoder) processBondContractDataMsg(f [][]byte) {
 	switch s := len(splittedExpiry); {
 	case s > 0:
 		c.Maturity = decodeString(splittedExpiry[0])
+		fallthrough
 	case s > 1:
 		c.LastTradeTime = decodeString(splittedExpiry[1])
+		fallthrough
 	case s > 2:
 		c.TimezoneID = decodeString(splittedExpiry[2])
 	}

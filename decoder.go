@@ -317,7 +317,7 @@ func (d *ibDecoder) wrapVerifyMessageAPI(f [][]byte) {
 
 func (d *ibDecoder) wrapVerifyCompleted(f [][]byte) {
 	isSuccessful := decodeBool(f[1])
-	err := decodeString(f[1])
+	err := decodeString(f[2])
 
 	d.wrapper.VerifyCompleted(isSuccessful, err)
 }

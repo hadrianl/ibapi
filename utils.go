@@ -19,6 +19,8 @@ const (
 	NO_VALID_ID int64   = -1
 )
 
+var emptyField []byte = []byte{}
+
 func init() {
 	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02T15:04:05.000000000Z07:00", FullTimestamp: true})
 }
@@ -231,14 +233,6 @@ func encodeBool(b bool) []byte {
 
 }
 
-// func encodeTagValue(tv TagValue) []byte {
-// 	return []byte(fmt.Sprintf("%v=%v;", tv.Tag, tv.Value))
-// }
-
-// func encodeTime(t time.Time) []byte {
-// 	return []byte{}
-// }
-
 func handleEmpty(d interface{}) string {
 	switch d.(type) {
 	case int64:
@@ -294,4 +288,124 @@ func InitDefault(o interface{}) {
 		}
 
 	}
+}
+
+type msgBuffer struct {
+	*bytes.Buffer
+}
+
+func (m *msgBuffer) readInt() int64 {
+	var bs []byte
+	var err error
+	var i int64
+	bs, err = m.ReadBytes(fieldSplit)
+	if err != nil {
+		log.Panicf("errDecodeInt: %v", err)
+	}
+
+	bs = bs[:len(bs)-1]
+	if bytes.Equal(bs, emptyField) {
+		return 0
+	}
+
+	i, err = strconv.ParseInt(string(bs), 10, 64)
+	if err != nil {
+		log.Panicf("errDecodeInt: %v", err)
+	}
+
+	return i
+}
+
+func (m *msgBuffer) readIntCheckUnset() int64 {
+	var bs []byte
+	var err error
+	var i int64
+	bs, err = m.ReadBytes(fieldSplit)
+	if err != nil {
+		log.Panicf("errDecodeInt: %v", err)
+	}
+
+	bs = bs[:len(bs)-1]
+	if bytes.Equal(bs, emptyField) {
+		return UNSETINT
+	}
+
+	i, err = strconv.ParseInt(string(bs), 10, 64)
+	if err != nil {
+		log.Panicf("errDecodeInt: %v", err)
+	}
+
+	return i
+}
+
+func (m *msgBuffer) readFloat() float64 {
+	var bs []byte
+	var err error
+	var f float64
+	bs, err = m.ReadBytes(fieldSplit)
+	if err != nil {
+		log.Panicf("errDecodeFloat: %v", err)
+	}
+
+	bs = bs[:len(bs)-1]
+	if bytes.Equal(bs, emptyField) {
+		return 0.0
+	}
+
+	f, err = strconv.ParseFloat(string(bs), 64)
+	if err != nil {
+		log.Panicf("errDecodeFloat: %v", err)
+	}
+
+	return f
+}
+
+func (m *msgBuffer) readFloatCheckUnset() float64 {
+	var bs []byte
+	var err error
+	var f float64
+	bs, err = m.ReadBytes(fieldSplit)
+	if err != nil {
+		log.Panicf("errDecodeFloat: %v", err)
+	}
+
+	bs = bs[:len(bs)-1]
+	if bytes.Equal(bs, emptyField) {
+		return UNSETFLOAT
+	}
+
+	f, err = strconv.ParseFloat(string(bs), 64)
+	if err != nil {
+		log.Panicf("errDecodeFloat: %v", err)
+	}
+
+	return f
+}
+
+func (m *msgBuffer) readBool() bool {
+	var bs []byte
+	var err error
+	bs, err = m.ReadBytes(fieldSplit)
+	if err != nil {
+		log.Panicf("errDecodeBool: %v", err)
+	}
+
+	bs = bs[:len(bs)-1]
+
+	if bytes.Equal(bs, []byte{'0'}) || bytes.Equal(bs, []byte{}) {
+		return false
+	}
+	return true
+}
+
+func (m *msgBuffer) readString() string {
+	var bs []byte
+	var err error
+	bs, err = m.ReadBytes(fieldSplit)
+	if err != nil {
+		log.Panicf("errDecodeString: %v", err)
+	}
+
+	bs = bs[:len(bs)-1]
+	return string(bs)
 }

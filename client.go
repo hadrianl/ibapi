@@ -189,7 +189,11 @@ comfirmReadyLoop:
 		case m := <-ic.msgChan:
 			f := splitMsgBytes(m)
 			MsgID, _ := strconv.ParseInt(string(f[0]), 10, 64)
-			ic.decoder.interpret(f...)
+
+			msgBuf := &msgBuffer{
+				bytes.NewBuffer(m)}
+
+			ic.decoder.interpret(msgBuf)
 			log.Debug(MsgID)
 			for i, ID := range comfirmMsgIDs {
 				if MsgID == int64(ID) {
@@ -2636,8 +2640,9 @@ decodeLoop:
 	for {
 		select {
 		case m := <-ic.msgChan:
-			f := splitMsgBytes(m)
-			ic.decoder.interpret(f...)
+			msgBuf := &msgBuffer{
+				bytes.NewBuffer(m)}
+			ic.decoder.interpret(msgBuf)
 		case e := <-ic.errChan:
 			log.Error(e)
 		case <-ic.terminatedSignal:

@@ -13,7 +13,7 @@ func TestClient(t *testing.T) {
 	var err error
 	ibwrapper := Wrapper{}
 	ic := NewIbClient(ibwrapper)
-	err = ic.Connect("192.168.2.226", 4002, 0)
+	err = ic.Connect("192.168.2.226", 4002, 19)
 	if err != nil {
 		log.Panic("Connect failed:", err)
 		return

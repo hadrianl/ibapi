@@ -1,9 +1,7 @@
 package ibapi
 
 import (
-	"bytes"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,7 +16,7 @@ const (
 type ibDecoder struct {
 	wrapper       IbWrapper
 	version       Version
-	msgID2process map[IN]func([][]byte)
+	msgID2process map[IN]func(*msgBuffer)
 	errChan       chan error
 }
 
@@ -26,8 +24,8 @@ func (d *ibDecoder) setVersion(version Version) {
 	d.version = version
 }
 
-func (d *ibDecoder) interpret(fs ...[]byte) {
-	if len(fs) == 0 {
+func (d *ibDecoder) interpret(msgBuf *msgBuffer) {
+	if msgBuf.Len() == 0 {
 		return
 	}
 
@@ -38,11 +36,11 @@ func (d *ibDecoder) interpret(fs ...[]byte) {
 		}
 	}()
 
-	MsgID, _ := strconv.ParseInt(string(fs[0]), 10, 64)
+	MsgID := msgBuf.readInt()
 	if processer, ok := d.msgID2process[IN(MsgID)]; ok {
-		processer(fs[1:])
+		processer(msgBuf)
 	} else {
-		log.Printf("MsgId: %v -> MsgBytes: %v", MsgID, fs[1:])
+		log.Printf("MsgId: %v -> MsgBytes: %v", MsgID, msgBuf.Bytes())
 	}
 
 }
@@ -71,7 +69,7 @@ func (d *ibDecoder) interpret(fs ...[]byte) {
 // }
 
 func (d *ibDecoder) setmsgID2process() {
-	d.msgID2process = map[IN]func([][]byte){
+	d.msgID2process = map[IN]func(*msgBuffer){
 		mTICK_PRICE:              d.processTickPriceMsg,
 		mTICK_SIZE:               d.wrapTickSize,
 		mORDER_STATUS:            d.processOrderStatusMsg,
@@ -153,37 +151,42 @@ func (d *ibDecoder) setmsgID2process() {
 
 }
 
-func (d *ibDecoder) wrapTickSize(f [][]byte) {
-	reqID := decodeInt(f[1])
-	tickType := decodeInt(f[2])
-	size := decodeInt(f[3])
+func (d *ibDecoder) wrapTickSize(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	tickType := msgBuf.readInt()
+	size := msgBuf.readInt()
 	d.wrapper.TickSize(reqID, tickType, size)
 }
 
-func (d *ibDecoder) wrapNextValidID(f [][]byte) {
-	reqID := decodeInt(f[1])
+func (d *ibDecoder) wrapNextValidID(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
 	d.wrapper.NextValidID(reqID)
 
 }
 
-func (d *ibDecoder) wrapManagedAccounts(f [][]byte) {
-	accNames := decodeString(f[1])
+func (d *ibDecoder) wrapManagedAccounts(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	accNames := msgBuf.readString()
 	accsList := strings.Split(accNames, ",")
 	d.wrapper.ManagedAccounts(accsList)
 
 }
 
-func (d *ibDecoder) wrapUpdateAccountValue(f [][]byte) {
-	tag := decodeString(f[1])
-	val := decodeString(f[2])
-	currency := decodeString(f[3])
-	accName := decodeString(f[4])
+func (d *ibDecoder) wrapUpdateAccountValue(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	tag := msgBuf.readString()
+	val := msgBuf.readString()
+	currency := msgBuf.readString()
+	accName := msgBuf.readString()
 
 	d.wrapper.UpdateAccountValue(tag, val, currency, accName)
 }
 
-func (d *ibDecoder) wrapUpdateAccountTime(f [][]byte) {
-	ts := string(f[1])
+func (d *ibDecoder) wrapUpdateAccountTime(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	ts := msgBuf.readString()
 	today := time.Now()
 	// time.
 	t, err := time.ParseInLocation("04:05", ts, time.Local)
@@ -195,248 +198,277 @@ func (d *ibDecoder) wrapUpdateAccountTime(f [][]byte) {
 	d.wrapper.UpdateAccountTime(t)
 }
 
-func (d *ibDecoder) wrapError(f [][]byte) {
-	reqID := decodeInt(f[1])
-	errorCode := decodeInt(f[2])
-	errorString := decodeString(f[3])
+func (d *ibDecoder) wrapError(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	errorCode := msgBuf.readInt()
+	errorString := msgBuf.readString()
 
 	d.wrapper.Error(reqID, errorCode, errorString)
 }
 
-func (d *ibDecoder) wrapCurrentTime(f [][]byte) {
-	ts := decodeInt(f[1])
+func (d *ibDecoder) wrapCurrentTime(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	ts := msgBuf.readInt()
 	t := time.Unix(ts, 0)
 
 	d.wrapper.CurrentTime(t)
 }
 
-func (d *ibDecoder) wrapUpdateMktDepth(f [][]byte) {
-	reqID := decodeInt(f[1])
-	position := decodeInt(f[2])
-	operation := decodeInt(f[3])
-	side := decodeInt(f[4])
-	price := decodeFloat(f[5])
-	size := decodeInt(f[6])
+func (d *ibDecoder) wrapUpdateMktDepth(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	position := msgBuf.readInt()
+	operation := msgBuf.readInt()
+	side := msgBuf.readInt()
+	price := msgBuf.readFloat()
+	size := msgBuf.readInt()
 
 	d.wrapper.UpdateMktDepth(reqID, position, operation, side, price, size)
 
 }
 
-func (d *ibDecoder) wrapUpdateMktDepthL2(f [][]byte) {
-	reqID := decodeInt(f[1])
-	position := decodeInt(f[2])
-	marketMaker := decodeString(f[3])
-	operation := decodeInt(f[4])
-	side := decodeInt(f[5])
-	price := decodeFloat(f[6])
-	size := decodeInt(f[7])
-	isSmartDepth := decodeBool(f[8])
+func (d *ibDecoder) wrapUpdateMktDepthL2(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	position := msgBuf.readInt()
+	marketMaker := msgBuf.readString()
+	operation := msgBuf.readInt()
+	side := msgBuf.readInt()
+	price := msgBuf.readFloat()
+	size := msgBuf.readInt()
+	isSmartDepth := msgBuf.readBool()
 
 	d.wrapper.UpdateMktDepthL2(reqID, position, marketMaker, operation, side, price, size, isSmartDepth)
 
 }
 
-func (d *ibDecoder) wrapUpdateNewsBulletin(f [][]byte) {
-	msgID := decodeInt(f[1])
-	msgType := decodeInt(f[2])
-	newsMessage := decodeString(f[3])
-	originExch := decodeString(f[4])
+func (d *ibDecoder) wrapUpdateNewsBulletin(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	msgID := msgBuf.readInt()
+	msgType := msgBuf.readInt()
+	newsMessage := msgBuf.readString()
+	originExch := msgBuf.readString()
 
 	d.wrapper.UpdateNewsBulletin(msgID, msgType, newsMessage, originExch)
 }
 
-func (d *ibDecoder) wrapReceiveFA(f [][]byte) {
-	faData := decodeInt(f[1])
-	cxml := decodeString(f[2])
+func (d *ibDecoder) wrapReceiveFA(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	faData := msgBuf.readInt()
+	cxml := msgBuf.readString()
 
 	d.wrapper.ReceiveFA(faData, cxml)
 }
 
-func (d *ibDecoder) wrapScannerParameters(f [][]byte) {
-	xml := decodeString(f[1])
+func (d *ibDecoder) wrapScannerParameters(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	xml := msgBuf.readString()
 
 	d.wrapper.ScannerParameters(xml)
 }
 
-func (d *ibDecoder) wrapTickGeneric(f [][]byte) {
-	reqID := decodeInt(f[1])
-	tickType := decodeInt(f[2])
-	value := decodeFloat(f[3])
+func (d *ibDecoder) wrapTickGeneric(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	tickType := msgBuf.readInt()
+	value := msgBuf.readFloat()
 
 	d.wrapper.TickGeneric(reqID, tickType, value)
 
 }
 
-func (d *ibDecoder) wrapTickString(f [][]byte) {
-	reqID := decodeInt(f[1])
-	tickType := decodeInt(f[2])
-	value := decodeString(f[3])
+func (d *ibDecoder) wrapTickString(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	tickType := msgBuf.readInt()
+	value := msgBuf.readString()
 
 	d.wrapper.TickString(reqID, tickType, value)
 
 }
 
-func (d *ibDecoder) wrapTickEFP(f [][]byte) {
-	reqID := decodeInt(f[1])
-	tickType := decodeInt(f[2])
-	basisPoints := decodeFloat(f[3])
-	formattedBasisPoints := decodeString(f[4])
-	totalDividends := decodeFloat(f[5])
-	holdDays := decodeInt(f[6])
-	futureLastTradeDate := decodeString(f[7])
-	dividendImpact := decodeFloat(f[8])
-	dividendsToLastTradeDate := decodeFloat(f[9])
+func (d *ibDecoder) wrapTickEFP(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	tickType := msgBuf.readInt()
+	basisPoints := msgBuf.readFloat()
+	formattedBasisPoints := msgBuf.readString()
+	totalDividends := msgBuf.readFloat()
+	holdDays := msgBuf.readInt()
+	futureLastTradeDate := msgBuf.readString()
+	dividendImpact := msgBuf.readFloat()
+	dividendsToLastTradeDate := msgBuf.readFloat()
 
 	d.wrapper.TickEFP(reqID, tickType, basisPoints, formattedBasisPoints, totalDividends, holdDays, futureLastTradeDate, dividendImpact, dividendsToLastTradeDate)
 
 }
 
-func (d *ibDecoder) wrapMarketDataType(f [][]byte) {
-	reqID := decodeInt(f[1])
-	marketDataType := decodeInt(f[2])
+func (d *ibDecoder) wrapMarketDataType(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	marketDataType := msgBuf.readInt()
 
 	d.wrapper.MarketDataType(reqID, marketDataType)
 }
 
-func (d *ibDecoder) wrapAccountSummary(f [][]byte) {
-	reqID := decodeInt(f[1])
-	account := decodeString(f[2])
-	tag := decodeString(f[3])
-	value := decodeString(f[4])
-	currency := decodeString(f[5])
+func (d *ibDecoder) wrapAccountSummary(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	account := msgBuf.readString()
+	tag := msgBuf.readString()
+	value := msgBuf.readString()
+	currency := msgBuf.readString()
 
 	d.wrapper.AccountSummary(reqID, account, tag, value, currency)
 }
 
-func (d *ibDecoder) wrapVerifyMessageAPI(f [][]byte) {
+func (d *ibDecoder) wrapVerifyMessageAPI(msgBuf *msgBuffer) {
 	// Deprecated Function: keep it temporarily, not know how it works
-	apiData := decodeString(f[1])
+	_ = msgBuf.readString()
+	apiData := msgBuf.readString()
 
 	d.wrapper.VerifyMessageAPI(apiData)
 }
 
-func (d *ibDecoder) wrapVerifyCompleted(f [][]byte) {
-	isSuccessful := decodeBool(f[1])
-	err := decodeString(f[1])
+func (d *ibDecoder) wrapVerifyCompleted(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	isSuccessful := msgBuf.readBool()
+	err := msgBuf.readString()
 
 	d.wrapper.VerifyCompleted(isSuccessful, err)
 }
 
-func (d *ibDecoder) wrapDisplayGroupList(f [][]byte) {
-	reqID := decodeInt(f[1])
-	groups := decodeString(f[2])
+func (d *ibDecoder) wrapDisplayGroupList(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	groups := msgBuf.readString()
 
 	d.wrapper.DisplayGroupList(reqID, groups)
 }
 
-func (d *ibDecoder) wrapDisplayGroupUpdated(f [][]byte) {
-	reqID := decodeInt(f[1])
-	contractInfo := decodeString(f[2])
+func (d *ibDecoder) wrapDisplayGroupUpdated(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	contractInfo := msgBuf.readString()
 
 	d.wrapper.DisplayGroupUpdated(reqID, contractInfo)
 }
 
-func (d *ibDecoder) wrapVerifyAndAuthMessageAPI(f [][]byte) {
-	apiData := decodeString(f[1])
-	xyzChallange := decodeString(f[2])
+func (d *ibDecoder) wrapVerifyAndAuthMessageAPI(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	apiData := msgBuf.readString()
+	xyzChallange := msgBuf.readString()
 
 	d.wrapper.VerifyAndAuthMessageAPI(apiData, xyzChallange)
 }
 
-func (d *ibDecoder) wrapVerifyAndAuthCompleted(f [][]byte) {
-	isSuccessful := decodeBool(f[1])
-	err := decodeString(f[2])
+func (d *ibDecoder) wrapVerifyAndAuthCompleted(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	isSuccessful := msgBuf.readBool()
+	err := msgBuf.readString()
 
 	d.wrapper.VerifyAndAuthCompleted(isSuccessful, err)
 }
 
-func (d *ibDecoder) wrapAccountUpdateMulti(f [][]byte) {
-	reqID := decodeInt(f[1])
-	acc := decodeString(f[2])
-	modelCode := decodeString(f[3])
-	tag := decodeString(f[4])
-	val := decodeString(f[5])
-	currency := decodeString(f[6])
+func (d *ibDecoder) wrapAccountUpdateMulti(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	acc := msgBuf.readString()
+	modelCode := msgBuf.readString()
+	tag := msgBuf.readString()
+	val := msgBuf.readString()
+	currency := msgBuf.readString()
 
 	d.wrapper.AccountUpdateMulti(reqID, acc, modelCode, tag, val, currency)
 }
 
-func (d *ibDecoder) wrapFundamentalData(f [][]byte) {
-	reqID := decodeInt(f[1])
-	data := decodeString(f[2])
+func (d *ibDecoder) wrapFundamentalData(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	data := msgBuf.readString()
 
 	d.wrapper.FundamentalData(reqID, data)
 }
 
 //--------------wrap end func ---------------------------------
 
-func (d *ibDecoder) wrapAccountDownloadEnd(f [][]byte) {
-	accName := string(f[1])
+func (d *ibDecoder) wrapAccountDownloadEnd(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	accName := msgBuf.readString()
 
 	d.wrapper.AccountDownloadEnd(accName)
 }
 
-func (d *ibDecoder) wrapOpenOrderEnd(f [][]byte) {
+func (d *ibDecoder) wrapOpenOrderEnd(msgBuf *msgBuffer) {
 
 	d.wrapper.OpenOrderEnd()
 }
 
-func (d *ibDecoder) wrapExecDetailsEnd(f [][]byte) {
-	reqID := decodeInt(f[1])
+func (d *ibDecoder) wrapExecDetailsEnd(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
 
 	d.wrapper.ExecDetailsEnd(reqID)
 }
 
-func (d *ibDecoder) wrapTickSnapshotEnd(f [][]byte) {
-	reqID := decodeInt(f[1])
+func (d *ibDecoder) wrapTickSnapshotEnd(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
 
 	d.wrapper.TickSnapshotEnd(reqID)
 }
 
-func (d *ibDecoder) wrapPositionEnd(f [][]byte) {
+func (d *ibDecoder) wrapPositionEnd(msgBuf *msgBuffer) {
 	// v := decodeInt(f[0])
 
 	d.wrapper.PositionEnd()
 }
 
-func (d *ibDecoder) wrapAccountSummaryEnd(f [][]byte) {
-	reqID := decodeInt(f[1])
+func (d *ibDecoder) wrapAccountSummaryEnd(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
 
 	d.wrapper.AccountSummaryEnd(reqID)
 }
 
-func (d *ibDecoder) wrapPositionMultiEnd(f [][]byte) {
-	reqID := decodeInt(f[1])
+func (d *ibDecoder) wrapPositionMultiEnd(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
 
 	d.wrapper.PositionMultiEnd(reqID)
 }
 
-func (d *ibDecoder) wrapAccountUpdateMultiEnd(f [][]byte) {
-	reqID := decodeInt(f[1])
+func (d *ibDecoder) wrapAccountUpdateMultiEnd(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
 
 	d.wrapper.AccountUpdateMultiEnd(reqID)
 }
 
-func (d *ibDecoder) wrapSecurityDefinitionOptionParameterEndMsg(f [][]byte) {
-	reqID := decodeInt(f[1])
+func (d *ibDecoder) wrapSecurityDefinitionOptionParameterEndMsg(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
 
 	d.wrapper.SecurityDefinitionOptionParameterEnd(reqID)
 }
 
-func (d *ibDecoder) wrapContractDetailsEnd(f [][]byte) {
-	reqID := decodeInt(f[1])
+func (d *ibDecoder) wrapContractDetailsEnd(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
 
 	d.wrapper.ContractDetailsEnd(reqID)
 }
 
 // ------------------------------------------------------------------
 
-func (d *ibDecoder) processTickPriceMsg(f [][]byte) {
-	reqID := decodeInt(f[1])
-	tickType := decodeInt(f[2])
-	price := decodeFloat(f[3])
-	size := decodeInt(f[4])
-	attrMask := decodeInt(f[5])
+func (d *ibDecoder) processTickPriceMsg(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	tickType := msgBuf.readInt()
+	price := msgBuf.readFloat()
+	size := msgBuf.readInt()
+	attrMask := msgBuf.readInt()
 
 	attrib := TickAttrib{}
 	attrib.CanAutoExecute = attrMask == 1
@@ -475,28 +507,28 @@ func (d *ibDecoder) processTickPriceMsg(f [][]byte) {
 
 }
 
-func (d *ibDecoder) processOrderStatusMsg(f [][]byte) {
+func (d *ibDecoder) processOrderStatusMsg(msgBuf *msgBuffer) {
 	if d.version < mMIN_SERVER_VER_MARKET_CAP_PRICE {
-		f = f[1:]
+		_ = msgBuf.readString()
 	}
-	orderID := decodeInt(f[0])
-	status := decodeString(f[1])
+	orderID := msgBuf.readInt()
+	status := msgBuf.readString()
 
-	filled := decodeFloat(f[2])
+	filled := msgBuf.readFloat()
 
-	remaining := decodeFloat(f[3])
+	remaining := msgBuf.readFloat()
 
-	avgFilledPrice := decodeFloat(f[4])
+	avgFilledPrice := msgBuf.readFloat()
 
-	permID := decodeInt(f[5])
-	parentID := decodeInt(f[6])
-	lastFillPrice := decodeFloat(f[7])
-	clientID := decodeInt(f[8])
-	whyHeld := decodeString(f[9])
+	permID := msgBuf.readInt()
+	parentID := msgBuf.readInt()
+	lastFillPrice := msgBuf.readFloat()
+	clientID := msgBuf.readInt()
+	whyHeld := msgBuf.readString()
 
 	var mktCapPrice float64
 	if d.version >= mMIN_SERVER_VER_MARKET_CAP_PRICE {
-		mktCapPrice = decodeFloat(f[10])
+		mktCapPrice = msgBuf.readFloat()
 	} else {
 		mktCapPrice = float64(0)
 	}
@@ -505,797 +537,731 @@ func (d *ibDecoder) processOrderStatusMsg(f [][]byte) {
 
 }
 
-func (d *ibDecoder) processOpenOrder(f [][]byte) {
+func (d *ibDecoder) processOpenOrder(msgBuf *msgBuffer) {
 
 	var version int64
 	if d.version < mMIN_SERVER_VER_ORDER_CONTAINER {
-		version = decodeInt(f[0])
-		f = f[1:]
+		version = msgBuf.readInt()
 	} else {
 		version = int64(d.version)
 	}
 
 	o := &Order{}
-	o.OrderID = decodeInt(f[0])
+	o.OrderID = msgBuf.readInt()
 
 	c := &Contract{}
 
-	c.ContractID = decodeInt(f[1])
-	c.Symbol = decodeString(f[2])
-	c.SecurityType = decodeString(f[3])
-	c.Expiry = decodeString(f[4])
+	c.ContractID = msgBuf.readInt()
+	c.Symbol = msgBuf.readString()
+	c.SecurityType = msgBuf.readString()
+	c.Expiry = msgBuf.readString()
 
-	c.Strike = decodeFloat(f[5])
-	c.Right = decodeString(f[6])
+	c.Strike = msgBuf.readFloat()
+	c.Right = msgBuf.readString()
 
 	if version >= 32 {
-		c.Multiplier = decodeString(f[7])
-		f = f[1:]
+		c.Multiplier = msgBuf.readString()
 	}
-	c.Exchange = decodeString(f[7])
-	c.Currency = decodeString(f[8])
-	c.LocalSymbol = decodeString(f[9])
+	c.Exchange = msgBuf.readString()
+	c.Currency = msgBuf.readString()
+	c.LocalSymbol = msgBuf.readString()
 	if version >= 32 {
-		c.TradingClass = decodeString(f[10])
-		f = f[1:]
+		c.TradingClass = msgBuf.readString()
 	}
 
-	o.Action = decodeString(f[10])
+	o.Action = msgBuf.readString()
 	if d.version >= mMIN_SERVER_VER_FRACTIONAL_POSITIONS {
-		o.TotalQuantity = decodeFloat(f[11])
+		o.TotalQuantity = msgBuf.readFloat()
 	} else {
-		o.TotalQuantity = float64(decodeInt(f[11]))
+		o.TotalQuantity = float64(msgBuf.readInt())
 	}
 
-	o.OrderType = decodeString(f[12])
+	o.OrderType = msgBuf.readString()
 	if version < 29 {
-		o.LimitPrice = decodeFloat(f[13])
+		o.LimitPrice = msgBuf.readFloat()
 	} else {
-		o.LimitPrice = decodeFloatCheckUnset(f[13])
+		o.LimitPrice = msgBuf.readFloatCheckUnset()
 	}
 
 	if version < 30 {
-		o.AuxPrice = decodeFloat(f[14])
+		o.AuxPrice = msgBuf.readFloat()
 	} else {
-		o.AuxPrice = decodeFloatCheckUnset(f[14])
+		o.AuxPrice = msgBuf.readFloatCheckUnset()
 	}
 
-	o.TIF = decodeString(f[15])
-	o.OCAGroup = decodeString(f[16])
-	o.Account = decodeString(f[17])
-	o.OpenClose = decodeString(f[18])
+	o.TIF = msgBuf.readString()
+	o.OCAGroup = msgBuf.readString()
+	o.Account = msgBuf.readString()
+	o.OpenClose = msgBuf.readString()
 
-	o.Origin = decodeInt(f[19])
+	o.Origin = msgBuf.readInt()
 
-	o.OrderRef = decodeString(f[20])
-	o.ClientID = decodeInt(f[21])
-	o.PermID = decodeInt(f[22])
+	o.OrderRef = msgBuf.readString()
+	o.ClientID = msgBuf.readInt()
+	o.PermID = msgBuf.readInt()
 
-	o.OutsideRTH = decodeBool(f[23])
-	o.Hidden = decodeBool(f[24])
-	o.DiscretionaryAmount = decodeFloat(f[25])
-	o.GoodAfterTime = decodeString(f[26])
+	o.OutsideRTH = msgBuf.readBool()
+	o.Hidden = msgBuf.readBool()
+	o.DiscretionaryAmount = msgBuf.readFloat()
+	o.GoodAfterTime = msgBuf.readString()
 
-	_ = decodeString(f[27]) //_sharesAllocation
+	_ = msgBuf.readString() //_sharesAllocation
 
-	o.FAGroup = decodeString(f[28])
-	o.FAMethod = decodeString(f[29])
-	o.FAPercentage = decodeString(f[30])
-	o.FAProfile = decodeString(f[31])
+	o.FAGroup = msgBuf.readString()
+	o.FAMethod = msgBuf.readString()
+	o.FAPercentage = msgBuf.readString()
+	o.FAProfile = msgBuf.readString()
 
 	if d.version >= mMIN_SERVER_VER_MODELS_SUPPORT {
-		o.ModelCode = decodeString(f[32])
-		f = f[1:]
+		o.ModelCode = msgBuf.readString()
 	}
 
-	o.GoodTillDate = decodeString(f[32])
+	o.GoodTillDate = msgBuf.readString()
 
-	o.Rule80A = decodeString(f[33])
-	o.PercentOffset = decodeFloatCheckUnset(f[34]) //show_unset
-	o.SettlingFirm = decodeString(f[35])
+	o.Rule80A = msgBuf.readString()
+	o.PercentOffset = msgBuf.readFloatCheckUnset() //show_unset
+	o.SettlingFirm = msgBuf.readString()
 
 	//ShortSaleParams
-	o.ShortSaleSlot = decodeInt(f[36])
-	o.DesignatedLocation = decodeString(f[37])
+	o.ShortSaleSlot = msgBuf.readInt()
+	o.DesignatedLocation = msgBuf.readString()
 
 	if d.version == mMIN_SERVER_VER_SSHORTX_OLD {
-		f = f[1:]
+		_ = msgBuf.readString()
 	} else if version >= 23 {
-		o.ExemptCode = decodeInt(f[38])
-		f = f[1:]
+		o.ExemptCode = msgBuf.readInt()
 	}
 
-	o.AuctionStrategy = decodeInt(f[38])
-	o.StartingPrice = decodeFloatCheckUnset(f[39])   //show_unset
-	o.StockRefPrice = decodeFloatCheckUnset(f[40])   //show_unset
-	o.Delta = decodeFloatCheckUnset(f[41])           //show_unset
-	o.StockRangeLower = decodeFloatCheckUnset(f[42]) //show_unset
-	o.StockRangeUpper = decodeFloatCheckUnset(f[43]) //show_unset
-	o.DisplaySize = decodeInt(f[44])
+	o.AuctionStrategy = msgBuf.readInt()
+	o.StartingPrice = msgBuf.readFloatCheckUnset()   //show_unset
+	o.StockRefPrice = msgBuf.readFloatCheckUnset()   //show_unset
+	o.Delta = msgBuf.readFloatCheckUnset()           //show_unset
+	o.StockRangeLower = msgBuf.readFloatCheckUnset() //show_unset
+	o.StockRangeUpper = msgBuf.readFloatCheckUnset() //show_unset
+	o.DisplaySize = msgBuf.readInt()
 
-	o.BlockOrder = decodeBool(f[45])
-	o.SweepToFill = decodeBool(f[46])
-	o.AllOrNone = decodeBool(f[47])
-	o.MinQty = decodeIntCheckUnset(f[48]) //show_unset
-	o.OCAType = decodeInt(f[49])
-	o.ETradeOnly = decodeBool(f[50])
-	o.FirmQuoteOnly = decodeBool(f[51])
-	o.NBBOPriceCap = decodeFloatCheckUnset(f[52]) //show_unset
+	o.BlockOrder = msgBuf.readBool()
+	o.SweepToFill = msgBuf.readBool()
+	o.AllOrNone = msgBuf.readBool()
+	o.MinQty = msgBuf.readIntCheckUnset() //show_unset
+	o.OCAType = msgBuf.readInt()
+	o.ETradeOnly = msgBuf.readBool()
+	o.FirmQuoteOnly = msgBuf.readBool()
+	o.NBBOPriceCap = msgBuf.readFloatCheckUnset() //show_unset
 
-	o.ParentID = decodeInt(f[53])
-	o.TriggerMethod = decodeInt(f[54])
+	o.ParentID = msgBuf.readInt()
+	o.TriggerMethod = msgBuf.readInt()
 
-	o.Volatility = decodeFloatCheckUnset(f[55]) //show_unset
-	o.VolatilityType = decodeInt(f[56])
-	o.DeltaNeutralOrderType = decodeString(f[57])
-	o.DeltaNeutralAuxPrice = decodeFloatCheckUnset(f[58])
+	o.Volatility = msgBuf.readFloatCheckUnset() //show_unset
+	o.VolatilityType = msgBuf.readInt()
+	o.DeltaNeutralOrderType = msgBuf.readString()
+	o.DeltaNeutralAuxPrice = msgBuf.readFloatCheckUnset() //show_unset
 
 	if version >= 27 && o.DeltaNeutralOrderType != "" {
-		o.DeltaNeutralContractID = decodeInt(f[59])
-		o.DeltaNeutralSettlingFirm = decodeString(f[60])
-		o.DeltaNeutralClearingAccount = decodeString(f[61])
-		o.DeltaNeutralClearingIntent = decodeString(f[62])
-		f = f[4:]
+		o.DeltaNeutralContractID = msgBuf.readInt()
+		o.DeltaNeutralSettlingFirm = msgBuf.readString()
+		o.DeltaNeutralClearingAccount = msgBuf.readString()
+		o.DeltaNeutralClearingIntent = msgBuf.readString()
 	}
 
 	if version >= 31 && o.DeltaNeutralOrderType != "" {
-		o.DeltaNeutralOpenClose = decodeString(f[59])
-		o.DeltaNeutralShortSale = decodeBool(f[60])
-		o.DeltaNeutralShortSaleSlot = decodeInt(f[61])
-		o.DeltaNeutralDesignatedLocation = decodeString(f[62])
-		f = f[4:]
+		o.DeltaNeutralOpenClose = msgBuf.readString()
+		o.DeltaNeutralShortSale = msgBuf.readBool()
+		o.DeltaNeutralShortSaleSlot = msgBuf.readInt()
+		o.DeltaNeutralDesignatedLocation = msgBuf.readString()
 	}
 
-	o.ContinuousUpdate = decodeBool(f[59])
-	o.ReferencePriceType = decodeInt(f[60])
+	o.ContinuousUpdate = msgBuf.readBool()
+	o.ReferencePriceType = msgBuf.readInt()
 
-	o.TrailStopPrice = decodeFloatCheckUnset(f[61])
+	o.TrailStopPrice = msgBuf.readFloatCheckUnset()
 
 	if version >= 30 {
-		o.TrailingPercent = decodeFloatCheckUnset(f[62]) //show_unset
-		f = f[1:]
+		o.TrailingPercent = msgBuf.readFloatCheckUnset() //show_unset
 	}
 
-	o.BasisPoints = decodeFloatCheckUnset(f[62])
-	o.BasisPointsType = decodeIntCheckUnset(f[63])
-	c.ComboLegsDescription = decodeString(f[64])
+	o.BasisPoints = msgBuf.readFloatCheckUnset()
+	o.BasisPointsType = msgBuf.readIntCheckUnset()
+	c.ComboLegsDescription = msgBuf.readString()
 
 	if version >= 29 {
 		c.ComboLegs = []ComboLeg{}
-		for comboLegsCount := decodeInt(f[65]); comboLegsCount > 0; comboLegsCount-- {
+		for comboLegsCount := msgBuf.readInt(); comboLegsCount > 0; comboLegsCount-- {
 			fmt.Println("comboLegsCount:", comboLegsCount)
 			comboleg := ComboLeg{}
-			comboleg.ContractID = decodeInt(f[66])
-			comboleg.Ratio = decodeInt(f[67])
-			comboleg.Action = decodeString(f[68])
-			comboleg.Exchange = decodeString(f[69])
-			comboleg.OpenClose = decodeInt(f[70])
-			comboleg.ShortSaleSlot = decodeInt(f[71])
-			comboleg.DesignatedLocation = decodeString(f[72])
-			comboleg.ExemptCode = decodeInt(f[73])
+			comboleg.ContractID = msgBuf.readInt()
+			comboleg.Ratio = msgBuf.readInt()
+			comboleg.Action = msgBuf.readString()
+			comboleg.Exchange = msgBuf.readString()
+			comboleg.OpenClose = msgBuf.readInt()
+			comboleg.ShortSaleSlot = msgBuf.readInt()
+			comboleg.DesignatedLocation = msgBuf.readString()
+			comboleg.ExemptCode = msgBuf.readInt()
 			c.ComboLegs = append(c.ComboLegs, comboleg)
-			f = f[8:]
 		}
-		f = f[1:]
 
 		o.OrderComboLegs = []OrderComboLeg{}
-		for orderComboLegsCount := decodeInt(f[65]); orderComboLegsCount > 0; orderComboLegsCount-- {
+		for orderComboLegsCount := msgBuf.readInt(); orderComboLegsCount > 0; orderComboLegsCount-- {
 			orderComboLeg := OrderComboLeg{}
-			orderComboLeg.Price = decodeFloatCheckUnset(f[66])
+			orderComboLeg.Price = msgBuf.readFloatCheckUnset()
 			o.OrderComboLegs = append(o.OrderComboLegs, orderComboLeg)
-			f = f[1:]
 		}
-		f = f[1:]
 	}
 
 	if version >= 26 {
 		o.SmartComboRoutingParams = []TagValue{}
-		for smartComboRoutingParamsCount := decodeInt(f[65]); smartComboRoutingParamsCount > 0; smartComboRoutingParamsCount-- {
+		for smartComboRoutingParamsCount := msgBuf.readInt(); smartComboRoutingParamsCount > 0; smartComboRoutingParamsCount-- {
 			tagValue := TagValue{}
-			tagValue.Tag = decodeString(f[66])
-			tagValue.Value = decodeString(f[67])
+			tagValue.Tag = msgBuf.readString()
+			tagValue.Value = msgBuf.readString()
 			o.SmartComboRoutingParams = append(o.SmartComboRoutingParams, tagValue)
-			f = f[2:]
 		}
-
-		f = f[1:]
 	}
 
 	if version >= 20 {
-		o.ScaleInitLevelSize = decodeIntCheckUnset(f[65]) //show_unset
-		o.ScaleSubsLevelSize = decodeIntCheckUnset(f[66]) //show_unset
+		o.ScaleInitLevelSize = msgBuf.readIntCheckUnset() //show_unset
+		o.ScaleSubsLevelSize = msgBuf.readIntCheckUnset() //show_unset
 	} else {
-		o.NotSuppScaleNumComponents = decodeIntCheckUnset(f[65])
-		o.ScaleInitLevelSize = decodeIntCheckUnset(f[66])
+		o.NotSuppScaleNumComponents = msgBuf.readIntCheckUnset()
+		o.ScaleInitLevelSize = msgBuf.readIntCheckUnset()
 	}
 
-	o.ScalePriceIncrement = decodeFloatCheckUnset(f[67])
+	o.ScalePriceIncrement = msgBuf.readFloatCheckUnset()
 
 	if version >= 28 && o.ScalePriceIncrement != UNSETFLOAT && o.ScalePriceIncrement > 0.0 {
-		o.ScalePriceAdjustValue = decodeFloatCheckUnset(f[68])
-		o.ScalePriceAdjustInterval = decodeIntCheckUnset(f[69])
-		o.ScaleProfitOffset = decodeFloatCheckUnset(f[70])
-		o.ScaleAutoReset = decodeBool(f[71])
-		o.ScaleInitPosition = decodeIntCheckUnset(f[72])
-		o.ScaleInitFillQty = decodeIntCheckUnset(f[73])
-		o.ScaleRandomPercent = decodeBool(f[74])
-		f = f[7:]
+		o.ScalePriceAdjustValue = msgBuf.readFloatCheckUnset()
+		o.ScalePriceAdjustInterval = msgBuf.readIntCheckUnset()
+		o.ScaleProfitOffset = msgBuf.readFloatCheckUnset()
+		o.ScaleAutoReset = msgBuf.readBool()
+		o.ScaleInitPosition = msgBuf.readIntCheckUnset()
+		o.ScaleInitFillQty = msgBuf.readIntCheckUnset()
+		o.ScaleRandomPercent = msgBuf.readBool()
 	}
 
 	if version >= 24 {
-		o.HedgeType = decodeString(f[68])
+		o.HedgeType = msgBuf.readString()
 		if o.HedgeType != "" {
-			o.HedgeParam = decodeString(f[69])
-			f = f[1:]
+			o.HedgeParam = msgBuf.readString()
 		}
-		f = f[1:]
 	}
 
 	if version >= 25 {
-		o.OptOutSmartRouting = decodeBool(f[68])
-		f = f[1:]
+		o.OptOutSmartRouting = msgBuf.readBool()
 	}
 
-	o.ClearingAccount = decodeString(f[68])
-	o.ClearingIntent = decodeString(f[69])
+	o.ClearingAccount = msgBuf.readString()
+	o.ClearingIntent = msgBuf.readString()
 
 	if version >= 22 {
-		o.NotHeld = decodeBool(f[70])
-		f = f[1:]
+		o.NotHeld = msgBuf.readBool()
 	}
 
 	if version >= 20 {
-		deltaNeutralContractPresent := decodeBool(f[70])
+		deltaNeutralContractPresent := msgBuf.readBool()
 		if deltaNeutralContractPresent {
 			c.DeltaNeutralContract = new(DeltaNeutralContract)
-			c.DeltaNeutralContract.ContractID = decodeInt(f[71])
-			c.DeltaNeutralContract.Delta = decodeFloat(f[72])
-			c.DeltaNeutralContract.Price = decodeFloat(f[73])
-			f = f[3:]
+			c.DeltaNeutralContract.ContractID = msgBuf.readInt()
+			c.DeltaNeutralContract.Delta = msgBuf.readFloat()
+			c.DeltaNeutralContract.Price = msgBuf.readFloat()
 		}
-		f = f[1:]
 	}
 
 	if version >= 21 {
-		o.AlgoStrategy = decodeString(f[70])
+		o.AlgoStrategy = msgBuf.readString()
 		if o.AlgoStrategy != "" {
 			o.AlgoParams = []TagValue{}
-			for algoParamsCount := decodeInt(f[71]); algoParamsCount > 0; algoParamsCount-- {
+			for algoParamsCount := msgBuf.readInt(); algoParamsCount > 0; algoParamsCount-- {
 				tagValue := TagValue{}
-				tagValue.Tag = decodeString(f[72])
-				tagValue.Value = decodeString(f[73])
+				tagValue.Tag = msgBuf.readString()
+				tagValue.Value = msgBuf.readString()
 				o.AlgoParams = append(o.AlgoParams, tagValue)
-				f = f[2:]
 			}
 		}
-		f = f[1:]
 	}
 
 	if version >= 33 {
-		o.Solictied = decodeBool(f[70])
-		f = f[1:]
+		o.Solictied = msgBuf.readBool()
 	}
 
 	orderState := &OrderState{}
 
-	o.WhatIf = decodeBool(f[70])
+	o.WhatIf = msgBuf.readBool()
 
-	orderState.Status = decodeString(f[71])
+	orderState.Status = msgBuf.readString()
 
 	if d.version >= mMIN_SERVER_VER_WHAT_IF_EXT_FIELDS {
-		orderState.InitialMarginBefore = decodeString(f[72])
-		orderState.MaintenanceMarginBefore = decodeString(f[73])
-		orderState.EquityWithLoanBefore = decodeString(f[74])
-		orderState.InitialMarginChange = decodeString(f[75])
-		orderState.MaintenanceMarginChange = decodeString(f[76])
-		orderState.EquityWithLoanChange = decodeString(f[77])
-		f = f[6:]
+		orderState.InitialMarginBefore = msgBuf.readString()
+		orderState.MaintenanceMarginBefore = msgBuf.readString()
+		orderState.EquityWithLoanBefore = msgBuf.readString()
+		orderState.InitialMarginChange = msgBuf.readString()
+		orderState.MaintenanceMarginChange = msgBuf.readString()
+		orderState.EquityWithLoanChange = msgBuf.readString()
 	}
 
-	orderState.InitialMarginAfter = decodeString(f[72])
-	orderState.MaintenanceMarginAfter = decodeString(f[73])
-	orderState.EquityWithLoanAfter = decodeString(f[74])
+	orderState.InitialMarginAfter = msgBuf.readString()
+	orderState.MaintenanceMarginAfter = msgBuf.readString()
+	orderState.EquityWithLoanAfter = msgBuf.readString()
 
-	orderState.Commission = decodeFloatCheckUnset(f[75])
-	orderState.MinCommission = decodeFloatCheckUnset(f[76])
-	orderState.MaxCommission = decodeFloatCheckUnset(f[77])
-	orderState.CommissionCurrency = decodeString(f[78])
-	orderState.WarningText = decodeString(f[79])
+	orderState.Commission = msgBuf.readFloatCheckUnset()
+	orderState.MinCommission = msgBuf.readFloatCheckUnset()
+	orderState.MaxCommission = msgBuf.readFloatCheckUnset()
+	orderState.CommissionCurrency = msgBuf.readString()
+	orderState.WarningText = msgBuf.readString()
 
 	if version >= 34 {
-		o.RandomizeSize = decodeBool(f[80])
-		o.RandomizePrice = decodeBool(f[81])
-		f = f[2:]
+		o.RandomizeSize = msgBuf.readBool()
+		o.RandomizePrice = msgBuf.readBool()
 	}
 
 	if d.version >= mMIN_SERVER_VER_PEGGED_TO_BENCHMARK {
 		if o.OrderType == "PEG BENCH" {
-			o.ReferenceContractID = decodeInt(f[80])
-			o.IsPeggedChangeAmountDecrease = decodeBool(f[81])
-			o.PeggedChangeAmount = decodeFloat(f[82])
-			o.ReferenceChangeAmount = decodeFloat(f[83])
-			o.ReferenceExchangeID = decodeString(f[84])
-			f = f[5:]
+			o.ReferenceContractID = msgBuf.readInt()
+			o.IsPeggedChangeAmountDecrease = msgBuf.readBool()
+			o.PeggedChangeAmount = msgBuf.readFloat()
+			o.ReferenceChangeAmount = msgBuf.readFloat()
+			o.ReferenceExchangeID = msgBuf.readString()
 		}
 
 		o.Conditions = []OrderConditioner{}
-		if conditionsSize := decodeInt(f[80]); conditionsSize > 0 {
+		if conditionsSize := msgBuf.readInt(); conditionsSize > 0 {
 			for ; conditionsSize > 0; conditionsSize-- {
-				conditionType := decodeInt(f[81])
-				cond, condSize := InitOrderCondition(conditionType)
-				cond.decode(f[82 : 82+condSize])
+				conditionType := msgBuf.readInt()
+				cond, _ := InitOrderCondition(conditionType)
+				cond.decode(msgBuf)
 
 				o.Conditions = append(o.Conditions, cond)
-				f = f[condSize+1:]
 			}
-			o.ConditionsIgnoreRth = decodeBool(f[81])
-			o.ConditionsCancelOrder = decodeBool(f[82])
-			f = f[2:]
+			o.ConditionsIgnoreRth = msgBuf.readBool()
+			o.ConditionsCancelOrder = msgBuf.readBool()
 		}
 
-		o.AdjustedOrderType = decodeString(f[81])
-		o.TriggerPrice = decodeFloat(f[82])
-		o.TrailStopPrice = decodeFloat(f[83])
-		o.LimitPriceOffset = decodeFloat(f[84])
-		o.AdjustedStopPrice = decodeFloat(f[85])
-		o.AdjustedStopLimitPrice = decodeFloat(f[86])
-		o.AdjustedTrailingAmount = decodeFloat(f[87])
-		o.AdjustableTrailingUnit = decodeInt(f[88])
-		f = f[9:]
+		o.AdjustedOrderType = msgBuf.readString()
+		o.TriggerPrice = msgBuf.readFloat()
+		o.TrailStopPrice = msgBuf.readFloat()
+		o.LimitPriceOffset = msgBuf.readFloat()
+		o.AdjustedStopPrice = msgBuf.readFloat()
+		o.AdjustedStopLimitPrice = msgBuf.readFloat()
+		o.AdjustedTrailingAmount = msgBuf.readFloat()
+		o.AdjustableTrailingUnit = msgBuf.readInt()
 	}
 
 	if d.version >= mMIN_SERVER_VER_SOFT_DOLLAR_TIER {
-		name := decodeString(f[80])
-		value := decodeString(f[81])
-		displayName := decodeString(f[82])
+		name := msgBuf.readString()
+		value := msgBuf.readString()
+		displayName := msgBuf.readString()
 		o.SoftDollarTier = SoftDollarTier{name, value, displayName}
-		f = f[3:]
 	}
 
 	if d.version >= mMIN_SERVER_VER_CASH_QTY {
-		o.CashQty = decodeFloat(f[80])
-		f = f[1:]
+		o.CashQty = msgBuf.readFloat()
 	}
 
 	if d.version >= mMIN_SERVER_VER_AUTO_PRICE_FOR_HEDGE {
-		o.DontUseAutoPriceForHedge = decodeBool(f[80])
-		f = f[1:]
+		o.DontUseAutoPriceForHedge = msgBuf.readBool()
 	}
 
 	if d.version >= mMIN_SERVER_VER_ORDER_CONTAINER {
-		o.IsOmsContainer = decodeBool(f[80])
-		f = f[1:]
+		o.IsOmsContainer = msgBuf.readBool()
 	}
 
 	if d.version >= mMIN_SERVER_VER_D_PEG_ORDERS {
-		o.DiscretionaryUpToLimitPrice = decodeBool(f[80])
-		f = f[1:]
+		o.DiscretionaryUpToLimitPrice = msgBuf.readBool()
 	}
 
 	if d.version >= mMIN_SERVER_VER_PRICE_MGMT_ALGO {
-		o.UsePriceMgmtAlgo = decodeBool(f[80])
-		f = f[1:]
+		o.UsePriceMgmtAlgo = msgBuf.readBool()
 	}
 
 	d.wrapper.OpenOrder(o.OrderID, c, o, orderState)
 
 }
 
-func (d *ibDecoder) processPortfolioValueMsg(f [][]byte) {
-	v := decodeInt(f[0])
+func (d *ibDecoder) processPortfolioValueMsg(msgBuf *msgBuffer) {
+	v := msgBuf.readInt()
 
 	c := &Contract{}
-	c.ContractID = decodeInt(f[1])
-	c.Symbol = decodeString(f[2])
-	c.SecurityType = decodeString(f[3])
-	c.Expiry = decodeString(f[4])
-	c.Strike = decodeFloat(f[5])
-	c.Right = decodeString(f[6])
+	c.ContractID = msgBuf.readInt()
+	c.Symbol = msgBuf.readString()
+	c.SecurityType = msgBuf.readString()
+	c.Expiry = msgBuf.readString()
+	c.Strike = msgBuf.readFloat()
+	c.Right = msgBuf.readString()
 
 	if v >= 7 {
-		c.Multiplier = decodeString(f[7])
-		c.PrimaryExchange = decodeString(f[8])
-		f = f[2:]
+		c.Multiplier = msgBuf.readString()
+		c.PrimaryExchange = msgBuf.readString()
 	}
 
-	c.Currency = decodeString(f[7])
-	c.LocalSymbol = decodeString(f[8])
+	c.Currency = msgBuf.readString()
+	c.LocalSymbol = msgBuf.readString()
 
 	if v >= 8 {
-		c.TradingClass = decodeString(f[9])
-		f = f[1:]
+		c.TradingClass = msgBuf.readString()
 	}
 	var position float64
 	if d.version >= mMIN_SERVER_VER_FRACTIONAL_POSITIONS {
-		position = decodeFloat(f[9])
+		position = msgBuf.readFloat()
 	} else {
-		position = float64(decodeInt(f[9]))
+		position = float64(msgBuf.readInt())
 	}
 
-	marketPrice := decodeFloat(f[10])
-	marketValue := decodeFloat(f[11])
-	averageCost := decodeFloat(f[12])
-	unrealizedPNL := decodeFloat(f[13])
-	realizedPNL := decodeFloat(f[14])
-	accName := decodeString(f[15])
+	marketPrice := msgBuf.readFloat()
+	marketValue := msgBuf.readFloat()
+	averageCost := msgBuf.readFloat()
+	unrealizedPNL := msgBuf.readFloat()
+	realizedPNL := msgBuf.readFloat()
+	accName := msgBuf.readString()
 
 	if v == 6 && d.version == 39 {
-		c.PrimaryExchange = decodeString(f[16])
+		c.PrimaryExchange = msgBuf.readString()
 	}
 
 	d.wrapper.UpdatePortfolio(c, position, marketPrice, marketValue, averageCost, unrealizedPNL, realizedPNL, accName)
 
 }
-func (d *ibDecoder) processContractDataMsg(f [][]byte) {
-	v := decodeInt(f[0])
+func (d *ibDecoder) processContractDataMsg(msgBuf *msgBuffer) {
+	v := msgBuf.readInt()
 	var reqID int64 = 1
 	if v >= 3 {
-		reqID = decodeInt(f[1])
-		f = f[1:]
+		reqID = msgBuf.readInt()
 	}
 
 	cd := ContractDetails{}
 	cd.Contract = Contract{}
-	cd.Contract.Symbol = decodeString(f[1])
-	cd.Contract.SecurityType = decodeString(f[2])
+	cd.Contract.Symbol = msgBuf.readString()
+	cd.Contract.SecurityType = msgBuf.readString()
 
-	lastTradeDateOrContractMonth := f[3]
-	if !bytes.Equal(lastTradeDateOrContractMonth, []byte{}) {
-		split := bytes.Split(lastTradeDateOrContractMonth, []byte{32})
+	lastTradeDateOrContractMonth := msgBuf.readString()
+	if lastTradeDateOrContractMonth != "" {
+		split := strings.Split(lastTradeDateOrContractMonth, " ")
 		if len(split) > 0 {
-			cd.Contract.Expiry = decodeString(split[0])
+			cd.Contract.Expiry = split[0]
 		}
 
 		if len(split) > 1 {
-			cd.LastTradeTime = decodeString(split[1])
+			cd.LastTradeTime = split[1]
 		}
 	}
 
-	cd.Contract.Strike = decodeFloat(f[4])
-	cd.Contract.Right = decodeString(f[5])
-	cd.Contract.Exchange = decodeString(f[6])
-	cd.Contract.Currency = decodeString(f[7])
-	cd.Contract.LocalSymbol = decodeString(f[8])
-	cd.MarketName = decodeString(f[9])
-	cd.Contract.TradingClass = decodeString(f[10])
-	cd.Contract.ContractID = decodeInt(f[11])
-	cd.MinTick = decodeFloat(f[12])
+	cd.Contract.Strike = msgBuf.readFloat()
+	cd.Contract.Right = msgBuf.readString()
+	cd.Contract.Exchange = msgBuf.readString()
+	cd.Contract.Currency = msgBuf.readString()
+	cd.Contract.LocalSymbol = msgBuf.readString()
+	cd.MarketName = msgBuf.readString()
+	cd.Contract.TradingClass = msgBuf.readString()
+	cd.Contract.ContractID = msgBuf.readInt()
+	cd.MinTick = msgBuf.readFloat()
 	if d.version >= mMIN_SERVER_VER_MD_SIZE_MULTIPLIER {
-		cd.MdSizeMultiplier = decodeInt(f[13])
-		f = f[1:]
+		cd.MdSizeMultiplier = msgBuf.readInt()
 	}
 
-	cd.Contract.Multiplier = decodeString(f[13])
-	cd.OrderTypes = decodeString(f[14])
-	cd.ValidExchanges = decodeString(f[15])
-	cd.PriceMagnifier = decodeInt(f[16])
+	cd.Contract.Multiplier = msgBuf.readString()
+	cd.OrderTypes = msgBuf.readString()
+	cd.ValidExchanges = msgBuf.readString()
+	cd.PriceMagnifier = msgBuf.readInt()
 
 	if v >= 4 {
-		cd.UnderContractID = decodeInt(f[17])
-		f = f[1:]
+		cd.UnderContractID = msgBuf.readInt()
 	}
 
 	if v >= 5 {
-		cd.LongName = decodeString(f[17])
-		cd.Contract.PrimaryExchange = decodeString(f[18])
-		f = f[2:]
+		cd.LongName = msgBuf.readString()
+		cd.Contract.PrimaryExchange = msgBuf.readString()
 	}
 
 	if v >= 6 {
-		cd.ContractMonth = decodeString(f[17])
-		cd.Industry = decodeString(f[18])
-		cd.Category = decodeString(f[19])
-		cd.Subcategory = decodeString(f[20])
-		cd.TimezoneID = decodeString(f[21])
-		cd.TradingHours = decodeString(f[22])
-		cd.LiquidHours = decodeString(f[23])
-		f = f[7:]
+		cd.ContractMonth = msgBuf.readString()
+		cd.Industry = msgBuf.readString()
+		cd.Category = msgBuf.readString()
+		cd.Subcategory = msgBuf.readString()
+		cd.TimezoneID = msgBuf.readString()
+		cd.TradingHours = msgBuf.readString()
+		cd.LiquidHours = msgBuf.readString()
 	}
 
 	if v >= 8 {
-		cd.EVRule = decodeString(f[17])
-		cd.EVMultiplier = decodeInt(f[18])
-		f = f[2:]
+		cd.EVRule = msgBuf.readString()
+		cd.EVMultiplier = msgBuf.readInt()
 	}
 
 	if v >= 7 {
 		cd.SecurityIDList = []TagValue{}
-		for secIDListCount := decodeInt(f[17]); secIDListCount > 0; secIDListCount-- {
+		for secIDListCount := msgBuf.readInt(); secIDListCount > 0; secIDListCount-- {
 			tagValue := TagValue{}
-			tagValue.Tag = decodeString(f[18])
-			tagValue.Value = decodeString(f[19])
+			tagValue.Tag = msgBuf.readString()
+			tagValue.Value = msgBuf.readString()
 			cd.SecurityIDList = append(cd.SecurityIDList, tagValue)
-			f = f[2:]
 		}
-		f = f[1:]
 	}
 
 	if d.version >= mMIN_SERVER_VER_AGG_GROUP {
-		cd.AggGroup = decodeInt(f[17])
-		f = f[1:]
+		cd.AggGroup = msgBuf.readInt()
 	}
 
 	if d.version >= mMIN_SERVER_VER_UNDERLYING_INFO {
-		cd.UnderSymbol = decodeString(f[17])
-		cd.UnderSecurityType = decodeString(f[18])
-		f = f[2:]
+		cd.UnderSymbol = msgBuf.readString()
+		cd.UnderSecurityType = msgBuf.readString()
 	}
 
 	if d.version >= mMIN_SERVER_VER_MARKET_RULES {
-		cd.MarketRuleIDs = decodeString(f[17])
-		f = f[1:]
+		cd.MarketRuleIDs = msgBuf.readString()
 	}
 
 	if d.version >= mMIN_SERVER_VER_REAL_EXPIRATION_DATE {
-		cd.RealExpirationDate = decodeString(f[17])
+		cd.RealExpirationDate = msgBuf.readString()
 	}
 
 	d.wrapper.ContractDetails(reqID, &cd)
 
 }
-func (d *ibDecoder) processBondContractDataMsg(f [][]byte) {
-	v := decodeInt(f[0])
+func (d *ibDecoder) processBondContractDataMsg(msgBuf *msgBuffer) {
+	v := msgBuf.readInt()
 
 	var reqID int64 = -1
 
 	if v >= 3 {
-		reqID = decodeInt(f[1])
-		f = f[1:]
+		reqID = msgBuf.readInt()
 	}
 
 	c := &ContractDetails{}
-	c.Contract.Symbol = decodeString(f[1])
-	c.Contract.SecurityType = decodeString(f[2])
-	c.Cusip = decodeString(f[3])
-	c.Coupon = decodeInt(f[4])
+	c.Contract.Symbol = msgBuf.readString()
+	c.Contract.SecurityType = msgBuf.readString()
+	c.Cusip = msgBuf.readString()
+	c.Coupon = msgBuf.readInt()
 
-	splittedExpiry := bytes.Split(f[5], []byte{32})
+	splittedExpiry := strings.Split(msgBuf.readString(), " ")
 	switch s := len(splittedExpiry); {
 	case s > 0:
-		c.Maturity = decodeString(splittedExpiry[0])
+		c.Maturity = splittedExpiry[0]
+		fallthrough
 	case s > 1:
-		c.LastTradeTime = decodeString(splittedExpiry[1])
+		c.LastTradeTime = splittedExpiry[1]
+		fallthrough
 	case s > 2:
-		c.TimezoneID = decodeString(splittedExpiry[2])
+		c.TimezoneID = splittedExpiry[2]
 	}
 
-	c.IssueDate = decodeString(f[6])
-	c.Ratings = decodeString(f[7])
-	c.BondType = decodeString(f[8])
-	c.CouponType = decodeString(f[9])
-	c.Convertible = decodeBool(f[10])
-	c.Callable = decodeBool(f[11])
-	c.Putable = decodeBool(f[12])
-	c.DescAppend = decodeString(f[13])
-	c.Contract.Exchange = decodeString(f[14])
-	c.Contract.Currency = decodeString(f[15])
-	c.MarketName = decodeString(f[16])
-	c.Contract.TradingClass = decodeString(f[17])
-	c.Contract.ContractID = decodeInt(f[18])
-	c.MinTick = decodeFloat(f[19])
+	c.IssueDate = msgBuf.readString()
+	c.Ratings = msgBuf.readString()
+	c.BondType = msgBuf.readString()
+	c.CouponType = msgBuf.readString()
+	c.Convertible = msgBuf.readBool()
+	c.Callable = msgBuf.readBool()
+	c.Putable = msgBuf.readBool()
+	c.DescAppend = msgBuf.readString()
+	c.Contract.Exchange = msgBuf.readString()
+	c.Contract.Currency = msgBuf.readString()
+	c.MarketName = msgBuf.readString()
+	c.Contract.TradingClass = msgBuf.readString()
+	c.Contract.ContractID = msgBuf.readInt()
+	c.MinTick = msgBuf.readFloat()
 
 	if d.version >= mMIN_SERVER_VER_MD_SIZE_MULTIPLIER {
-		c.MdSizeMultiplier = decodeInt(f[20])
-		f = f[1:]
+		c.MdSizeMultiplier = msgBuf.readInt()
 	}
 
-	c.OrderTypes = decodeString(f[20])
-	c.ValidExchanges = decodeString(f[21])
-	c.NextOptionDate = decodeString(f[22])
-	c.NextOptionType = decodeString(f[23])
-	c.NextOptionPartial = decodeBool(f[24])
-	c.Notes = decodeString(f[25])
+	c.OrderTypes = msgBuf.readString()
+	c.ValidExchanges = msgBuf.readString()
+	c.NextOptionDate = msgBuf.readString()
+	c.NextOptionType = msgBuf.readString()
+	c.NextOptionPartial = msgBuf.readBool()
+	c.Notes = msgBuf.readString()
 
 	if v >= 4 {
-		c.LongName = decodeString(f[26])
-		f = f[1:]
+		c.LongName = msgBuf.readString()
 	}
 
 	if v >= 6 {
-		c.EVRule = decodeString(f[26])
-		c.EVMultiplier = decodeInt(f[27])
-		f = f[2:]
+		c.EVRule = msgBuf.readString()
+		c.EVMultiplier = msgBuf.readInt()
 	}
 
 	if v >= 5 {
 		c.SecurityIDList = []TagValue{}
-		for secIDListCount := decodeInt(f[26]); secIDListCount > 0; secIDListCount-- {
+		for secIDListCount := msgBuf.readInt(); secIDListCount > 0; secIDListCount-- {
 			tagValue := TagValue{}
-			tagValue.Tag = decodeString(f[27])
-			tagValue.Value = decodeString(f[28])
+			tagValue.Tag = msgBuf.readString()
+			tagValue.Value = msgBuf.readString()
 			c.SecurityIDList = append(c.SecurityIDList, tagValue)
-			f = f[2:]
 		}
-		f = f[1:]
 	}
 
 	if d.version >= mMIN_SERVER_VER_AGG_GROUP {
-		c.AggGroup = decodeInt(f[26])
-		f = f[1:]
+		c.AggGroup = msgBuf.readInt()
 	}
 
 	if d.version >= mMIN_SERVER_VER_MARKET_RULES {
-		c.MarketRuleIDs = decodeString(f[26])
-		f = f[1:]
+		c.MarketRuleIDs = msgBuf.readString()
 	}
 
 	d.wrapper.BondContractDetails(reqID, c)
 
 }
-func (d *ibDecoder) processScannerDataMsg(f [][]byte) {
-	f = f[1:]
-	reqID := decodeInt(f[0])
-	for numofElements := decodeInt(f[1]); numofElements > 0; numofElements-- {
+func (d *ibDecoder) processScannerDataMsg(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	for numofElements := msgBuf.readInt(); numofElements > 0; numofElements-- {
 		sd := ScanData{}
 		sd.ContractDetails = ContractDetails{}
-		sd.Rank = decodeInt(f[2])
-		sd.ContractDetails.Contract.ContractID = decodeInt(f[3])
-		sd.ContractDetails.Contract.Symbol = decodeString(f[4])
-		sd.ContractDetails.Contract.SecurityType = decodeString(f[5])
-		sd.ContractDetails.Contract.Expiry = decodeString(f[6])
-		sd.ContractDetails.Contract.Strike = decodeFloat(f[7])
-		sd.ContractDetails.Contract.Right = decodeString(f[8])
-		sd.ContractDetails.Contract.Exchange = decodeString(f[9])
-		sd.ContractDetails.Contract.Currency = decodeString(f[10])
-		sd.ContractDetails.Contract.LocalSymbol = decodeString(f[11])
-		sd.ContractDetails.MarketName = decodeString(f[12])
-		sd.ContractDetails.Contract.TradingClass = decodeString(f[13])
-		sd.Distance = decodeString(f[14])
-		sd.Benchmark = decodeString(f[15])
-		sd.Projection = decodeString(f[16])
-		sd.Legs = decodeString(f[17])
+		sd.Rank = msgBuf.readInt()
+		sd.ContractDetails.Contract.ContractID = msgBuf.readInt()
+		sd.ContractDetails.Contract.Symbol = msgBuf.readString()
+		sd.ContractDetails.Contract.SecurityType = msgBuf.readString()
+		sd.ContractDetails.Contract.Expiry = msgBuf.readString()
+		sd.ContractDetails.Contract.Strike = msgBuf.readFloat()
+		sd.ContractDetails.Contract.Right = msgBuf.readString()
+		sd.ContractDetails.Contract.Exchange = msgBuf.readString()
+		sd.ContractDetails.Contract.Currency = msgBuf.readString()
+		sd.ContractDetails.Contract.LocalSymbol = msgBuf.readString()
+		sd.ContractDetails.MarketName = msgBuf.readString()
+		sd.ContractDetails.Contract.TradingClass = msgBuf.readString()
+		sd.Distance = msgBuf.readString()
+		sd.Benchmark = msgBuf.readString()
+		sd.Projection = msgBuf.readString()
+		sd.Legs = msgBuf.readString()
 
 		d.wrapper.ScannerData(reqID, sd.Rank, &(sd.ContractDetails), sd.Distance, sd.Benchmark, sd.Projection, sd.Legs)
-		f = f[16:]
 
 	}
 
 	d.wrapper.ScannerDataEnd(reqID)
 
 }
-func (d *ibDecoder) processExecutionDataMsg(f [][]byte) {
+func (d *ibDecoder) processExecutionDataMsg(msgBuf *msgBuffer) {
 	var v int64
 	if d.version < mMIN_SERVER_VER_LAST_LIQUIDITY {
-		v = decodeInt(f[0])
-		f = f[1:]
+		v = msgBuf.readInt()
 	} else {
 		v = int64(d.version)
 	}
 
 	var reqID int64 = -1
 	if v >= 7 {
-		reqID = decodeInt(f[0])
-		f = f[1:]
+		reqID = msgBuf.readInt()
 	}
 
-	orderID := decodeInt(f[0])
+	orderID := msgBuf.readInt()
 
 	c := Contract{}
-	c.ContractID = decodeInt(f[1])
-	c.Symbol = decodeString(f[2])
-	c.SecurityType = decodeString(f[3])
-	c.Expiry = decodeString(f[4])
-	c.Strike = decodeFloat(f[5])
-	c.Right = decodeString(f[6])
+	c.ContractID = msgBuf.readInt()
+	c.Symbol = msgBuf.readString()
+	c.SecurityType = msgBuf.readString()
+	c.Expiry = msgBuf.readString()
+	c.Strike = msgBuf.readFloat()
+	c.Right = msgBuf.readString()
 
 	if v >= 9 {
-		c.Multiplier = decodeString(f[7])
-		f = f[1:]
+		c.Multiplier = msgBuf.readString()
 	}
 
-	c.Exchange = decodeString(f[7])
-	c.Currency = decodeString(f[8])
-	c.LocalSymbol = decodeString(f[9])
+	c.Exchange = msgBuf.readString()
+	c.Currency = msgBuf.readString()
+	c.LocalSymbol = msgBuf.readString()
 
 	if v >= 10 {
-		c.TradingClass = decodeString(f[10])
-		f = f[1:]
+		c.TradingClass = msgBuf.readString()
 	}
 
 	e := Execution{}
 	e.OrderID = orderID
-	e.ExecID = decodeString(f[10])
-	e.Time = decodeString(f[11])
-	e.AccountCode = decodeString(f[12])
-	e.Exchange = decodeString(f[13])
-	e.Side = decodeString(f[14])
-	e.Shares = decodeFloat(f[15])
-	e.Price = decodeFloat(f[16])
-	e.PermID = decodeInt(f[17])
-	e.ClientID = decodeInt(f[18])
-	e.Liquidation = decodeInt(f[19])
+	e.ExecID = msgBuf.readString()
+	e.Time = msgBuf.readString()
+	e.AccountCode = msgBuf.readString()
+	e.Exchange = msgBuf.readString()
+	e.Side = msgBuf.readString()
+	e.Shares = msgBuf.readFloat()
+	e.Price = msgBuf.readFloat()
+	e.PermID = msgBuf.readInt()
+	e.ClientID = msgBuf.readInt()
+	e.Liquidation = msgBuf.readInt()
 
 	if v >= 6 {
-		e.CumQty = decodeFloat(f[20])
-		e.AveragePrice = decodeFloat(f[21])
-		f = f[2:]
+		e.CumQty = msgBuf.readFloat()
+		e.AveragePrice = msgBuf.readFloat()
 	}
 
 	if v >= 8 {
-		e.OrderRef = decodeString(f[20])
-		f = f[1:]
+		e.OrderRef = msgBuf.readString()
 	}
 
 	if v >= 9 {
-		e.EVRule = decodeString(f[20])
-		e.EVMultiplier = decodeFloat(f[21])
-		f = f[2:]
+		e.EVRule = msgBuf.readString()
+		e.EVMultiplier = msgBuf.readFloat()
 	}
 
 	if d.version >= mMIN_SERVER_VER_MODELS_SUPPORT {
-		e.ModelCode = decodeString(f[20])
-		f = f[1:]
+		e.ModelCode = msgBuf.readString()
 	}
 	if d.version >= mMIN_SERVER_VER_LAST_LIQUIDITY {
-		e.LastLiquidity = decodeInt(f[20])
+		e.LastLiquidity = msgBuf.readInt()
 	}
 
 	d.wrapper.ExecDetails(reqID, &c, &e)
 
 }
-func (d *ibDecoder) processHistoricalDataMsg(f [][]byte) {
+func (d *ibDecoder) processHistoricalDataMsg(msgBuf *msgBuffer) {
 	if d.version < mMIN_SERVER_VER_SYNT_REALTIME_BARS {
-		f = f[1:]
+		_ = msgBuf.readString()
 	}
 
-	reqID := decodeInt(f[0])
-	startDatestr := decodeString(f[1])
-	endDateStr := decodeString(f[2])
+	reqID := msgBuf.readInt()
+	startDatestr := msgBuf.readString()
+	endDateStr := msgBuf.readString()
 
-	for itemCount := decodeInt(f[3]); itemCount > 0; itemCount-- {
+	for itemCount := msgBuf.readInt(); itemCount > 0; itemCount-- {
 		bar := &BarData{}
-		bar.Date = decodeString(f[4])
-		bar.Open = decodeFloat(f[5])
-		bar.High = decodeFloat(f[6])
-		bar.Low = decodeFloat(f[7])
-		bar.Close = decodeFloat(f[8])
-		bar.Volume = decodeFloat(f[9])
-		bar.Average = decodeFloat(f[10])
+		bar.Date = msgBuf.readString()
+		bar.Open = msgBuf.readFloat()
+		bar.High = msgBuf.readFloat()
+		bar.Low = msgBuf.readFloat()
+		bar.Close = msgBuf.readFloat()
+		bar.Volume = msgBuf.readFloat()
+		bar.Average = msgBuf.readFloat()
 
 		if d.version < mMIN_SERVER_VER_SYNT_REALTIME_BARS {
-			f = f[1:]
+			_ = msgBuf.readString()
 		}
-		bar.BarCount = decodeInt(f[11])
-		f = f[8:]
+		bar.BarCount = msgBuf.readInt()
 		d.wrapper.HistoricalData(reqID, bar)
 	}
-	f = f[1:]
 
 	d.wrapper.HistoricalDataEnd(reqID, startDatestr, endDateStr)
 
 }
-func (d *ibDecoder) processHistoricalDataUpdateMsg(f [][]byte) {
-	reqID := decodeInt(f[0])
+func (d *ibDecoder) processHistoricalDataUpdateMsg(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
 	bar := &BarData{}
-	bar.BarCount = decodeInt(f[1])
-	bar.Date = decodeString(f[2])
-	bar.Open = decodeFloat(f[3])
-	bar.Close = decodeFloat(f[4])
-	bar.High = decodeFloat(f[5])
-	bar.Low = decodeFloat(f[6])
-	bar.Volume = decodeFloat(f[7])
+	bar.BarCount = msgBuf.readInt()
+	bar.Date = msgBuf.readString()
+	bar.Open = msgBuf.readFloat()
+	bar.Close = msgBuf.readFloat()
+	bar.High = msgBuf.readFloat()
+	bar.Low = msgBuf.readFloat()
+	bar.Average = msgBuf.readFloat()
+	bar.Volume = msgBuf.readFloat()
 
 	d.wrapper.HistoricalDataUpdate(reqID, bar)
 
 }
-func (d *ibDecoder) processRealTimeBarMsg(f [][]byte) {
-	_ = f[0]
-	reqID := decodeInt(f[1])
+func (d *ibDecoder) processRealTimeBarMsg(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
 
 	rtb := &RealTimeBar{}
-	rtb.Time = decodeInt(f[2])
-	rtb.Open = decodeFloat(f[3])
-	rtb.High = decodeFloat(f[4])
-	rtb.Low = decodeFloat(f[5])
-	rtb.Close = decodeFloat(f[6])
-	rtb.Volume = decodeInt(f[7])
-	rtb.Wap = decodeFloat(f[8])
-	rtb.Count = decodeInt(f[9])
+	rtb.Time = msgBuf.readInt()
+	rtb.Open = msgBuf.readFloat()
+	rtb.High = msgBuf.readFloat()
+	rtb.Low = msgBuf.readFloat()
+	rtb.Close = msgBuf.readFloat()
+	rtb.Volume = msgBuf.readInt()
+	rtb.Wap = msgBuf.readFloat()
+	rtb.Count = msgBuf.readInt()
 	// HELP: passing by value is not a good way,why not pass pointer type?
 	d.wrapper.RealtimeBar(reqID, rtb.Time, rtb.Open, rtb.High, rtb.Low, rtb.Close, rtb.Volume, rtb.Wap, rtb.Count)
 }
 
-func (d *ibDecoder) processTickOptionComputationMsg(f [][]byte) {
+func (d *ibDecoder) processTickOptionComputationMsg(msgBuf *msgBuffer) {
 	optPrice := UNSETFLOAT
 	pvDividend := UNSETFLOAT
 	gamma := UNSETFLOAT
@@ -1303,25 +1269,23 @@ func (d *ibDecoder) processTickOptionComputationMsg(f [][]byte) {
 	theta := UNSETFLOAT
 	undPrice := UNSETFLOAT
 
-	v := decodeInt(f[0])
-	reqID := decodeInt(f[1])
-	tickType := decodeInt(f[2])
+	v := msgBuf.readInt()
+	reqID := msgBuf.readInt()
+	tickType := msgBuf.readInt()
 
-	impliedVol := decodeFloat(f[3])
-	delta := decodeFloat(f[4])
+	impliedVol := msgBuf.readFloat()
+	delta := msgBuf.readFloat()
 
 	if v >= 6 || tickType == MODEL_OPTION || tickType == DELAYED_MODEL_OPTION {
-		optPrice = decodeFloat(f[5])
-		pvDividend = decodeFloat(f[6])
-		f = f[2:]
-
+		optPrice = msgBuf.readFloat()
+		pvDividend = msgBuf.readFloat()
 	}
 
 	if v >= 6 {
-		gamma = decodeFloat(f[5])
-		vega = decodeFloat(f[6])
-		theta = decodeFloat(f[7])
-		undPrice = decodeFloat(f[8])
+		gamma = msgBuf.readFloat()
+		vega = msgBuf.readFloat()
+		theta = msgBuf.readFloat()
+		undPrice = msgBuf.readFloat()
 
 	}
 
@@ -1355,701 +1319,676 @@ func (d *ibDecoder) processTickOptionComputationMsg(f [][]byte) {
 
 }
 
-func (d *ibDecoder) processDeltaNeutralValidationMsg(f [][]byte) {
-	_ = decodeInt(f[0])
-	reqID := decodeInt(f[1])
+func (d *ibDecoder) processDeltaNeutralValidationMsg(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
 	deltaNeutralContract := DeltaNeutralContract{}
 
-	deltaNeutralContract.ContractID = decodeInt(f[2])
-	deltaNeutralContract.Delta = decodeFloat(f[3])
-	deltaNeutralContract.Price = decodeFloat(f[4])
+	deltaNeutralContract.ContractID = msgBuf.readInt()
+	deltaNeutralContract.Delta = msgBuf.readFloat()
+	deltaNeutralContract.Price = msgBuf.readFloat()
 
 	d.wrapper.DeltaNeutralValidation(reqID, deltaNeutralContract)
 
 }
 
-// func (d *ibDecoder) processMarketDataTypeMsg(f [][]byte) {
+// func (d *ibDecoder) processMarketDataTypeMsg(msgBuf *msgBuffer) {
 
 // }
-func (d *ibDecoder) processCommissionReportMsg(f [][]byte) {
-	_ = decodeInt(f[0])
+func (d *ibDecoder) processCommissionReportMsg(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
 	cr := CommissionReport{}
-	cr.ExecId = decodeString(f[1])
-	cr.Commission = decodeFloat(f[2])
-	cr.Currency = decodeString(f[3])
-	cr.RealizedPNL = decodeFloat(f[4])
-	cr.Yield = decodeFloat(f[5])
-	cr.YieldRedemptionDate = decodeInt(f[6])
+	cr.ExecId = msgBuf.readString()
+	cr.Commission = msgBuf.readFloat()
+	cr.Currency = msgBuf.readString()
+	cr.RealizedPNL = msgBuf.readFloat()
+	cr.Yield = msgBuf.readFloat()
+	cr.YieldRedemptionDate = msgBuf.readInt()
 
 	d.wrapper.CommissionReport(cr)
 
 }
-func (d *ibDecoder) processPositionDataMsg(f [][]byte) {
-	v := decodeInt(f[0])
-	acc := decodeString(f[1])
+func (d *ibDecoder) processPositionDataMsg(msgBuf *msgBuffer) {
+	v := msgBuf.readInt()
+	acc := msgBuf.readString()
 
 	c := new(Contract)
-	c.ContractID = decodeInt(f[2])
-	c.Symbol = decodeString(f[3])
-	c.SecurityType = decodeString(f[4])
-	c.Expiry = decodeString(f[5])
-	c.Strike = decodeFloat(f[6])
-	c.Right = decodeString(f[7])
-	c.Multiplier = decodeString(f[8])
-	c.Exchange = decodeString(f[9])
-	c.Currency = decodeString(f[10])
-	c.LocalSymbol = decodeString(f[11])
+	c.ContractID = msgBuf.readInt()
+	c.Symbol = msgBuf.readString()
+	c.SecurityType = msgBuf.readString()
+	c.Expiry = msgBuf.readString()
+	c.Strike = msgBuf.readFloat()
+	c.Right = msgBuf.readString()
+	c.Multiplier = msgBuf.readString()
+	c.Exchange = msgBuf.readString()
+	c.Currency = msgBuf.readString()
+	c.LocalSymbol = msgBuf.readString()
 
 	if v >= 2 {
-		c.TradingClass = decodeString(f[12])
-		f = f[1:]
+		c.TradingClass = msgBuf.readString()
 	}
 
 	var p float64
 	if d.version >= mMIN_SERVER_VER_FRACTIONAL_POSITIONS {
-		p = decodeFloat(f[12])
+		p = msgBuf.readFloat()
 	} else {
-		p = float64(decodeInt(f[12]))
+		p = float64(msgBuf.readInt())
 	}
 
 	var avgCost float64
 	if v >= 3 {
-		avgCost = decodeFloat(f[13])
+		avgCost = msgBuf.readFloat()
 	}
 
 	d.wrapper.Position(acc, c, p, avgCost)
 
 }
-func (d *ibDecoder) processPositionMultiMsg(f [][]byte) {
-	_ = decodeInt(f[0])
-	reqID := decodeInt(f[1])
-	acc := decodeString(f[2])
+func (d *ibDecoder) processPositionMultiMsg(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	reqID := msgBuf.readInt()
+	acc := msgBuf.readString()
 
 	c := new(Contract)
-	c.ContractID = decodeInt(f[3])
-	c.Symbol = decodeString(f[4])
-	c.SecurityType = decodeString(f[5])
-	c.Expiry = decodeString(f[6])
-	c.Strike = decodeFloat(f[7])
-	c.Multiplier = decodeString(f[8])
-	c.Exchange = decodeString(f[9])
-	c.Currency = decodeString(f[10])
-	c.LocalSymbol = decodeString(f[11])
-	c.TradingClass = decodeString(f[12])
+	c.ContractID = msgBuf.readInt()
+	c.Symbol = msgBuf.readString()
+	c.SecurityType = msgBuf.readString()
+	c.Expiry = msgBuf.readString()
+	c.Strike = msgBuf.readFloat()
+	c.Multiplier = msgBuf.readString()
+	c.Exchange = msgBuf.readString()
+	c.Currency = msgBuf.readString()
+	c.LocalSymbol = msgBuf.readString()
+	c.TradingClass = msgBuf.readString()
 
-	p := decodeFloat(f[13])
-	avgCost := decodeFloat(f[14])
-	modelCode := decodeString(f[15])
+	p := msgBuf.readFloat()
+	avgCost := msgBuf.readFloat()
+	modelCode := msgBuf.readString()
 
 	d.wrapper.PositionMulti(reqID, acc, modelCode, c, p, avgCost)
 
 }
-func (d *ibDecoder) processSecurityDefinitionOptionParameterMsg(f [][]byte) {
-	reqID := decodeInt(f[0])
-	exchange := decodeString(f[1])
-	underlyingContractID := decodeInt(f[2])
-	tradingClass := decodeString(f[3])
-	multiplier := decodeString(f[4])
+func (d *ibDecoder) processSecurityDefinitionOptionParameterMsg(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	exchange := msgBuf.readString()
+	underlyingContractID := msgBuf.readInt()
+	tradingClass := msgBuf.readString()
+	multiplier := msgBuf.readString()
 
 	expirations := []string{}
-	for expCount := decodeInt(f[5]); expCount > 0; expCount-- {
-		expiration := decodeString(f[6])
+	for expCount := msgBuf.readInt(); expCount > 0; expCount-- {
+		expiration := msgBuf.readString()
 		expirations = append(expirations, expiration)
-		f = f[1:]
 	}
-	f = f[1:]
 
 	strikes := []float64{}
-	for strikeCount := decodeInt(f[5]); strikeCount > 0; strikeCount-- {
-		strike := decodeFloat(f[6])
+	for strikeCount := msgBuf.readInt(); strikeCount > 0; strikeCount-- {
+		strike := msgBuf.readFloat()
 		strikes = append(strikes, strike)
-		f = f[1:]
 	}
 
 	d.wrapper.SecurityDefinitionOptionParameter(reqID, exchange, underlyingContractID, tradingClass, multiplier, expirations, strikes)
 
 }
 
-func (d *ibDecoder) processSoftDollarTiersMsg(f [][]byte) {
-	reqID := decodeInt(f[0])
+func (d *ibDecoder) processSoftDollarTiersMsg(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
 
 	tiers := []SoftDollarTier{}
-	for tierCount := decodeInt(f[1]); tierCount > 0; tierCount-- {
+	for tierCount := msgBuf.readInt(); tierCount > 0; tierCount-- {
 		tier := SoftDollarTier{}
-		tier.Name = decodeString(f[2])
-		tier.Value = decodeString(f[3])
-		tier.DisplayName = decodeString(f[4])
+		tier.Name = msgBuf.readString()
+		tier.Value = msgBuf.readString()
+		tier.DisplayName = msgBuf.readString()
 		tiers = append(tiers, tier)
-		f = f[3:]
 	}
 
 	d.wrapper.SoftDollarTiers(reqID, tiers)
 
 }
-func (d *ibDecoder) processFamilyCodesMsg(f [][]byte) {
+func (d *ibDecoder) processFamilyCodesMsg(msgBuf *msgBuffer) {
 	familyCodes := []FamilyCode{}
 
-	for fcCount := decodeInt(f[0]); fcCount > 0; fcCount-- {
+	for fcCount := msgBuf.readInt(); fcCount > 0; fcCount-- {
 		familyCode := FamilyCode{}
-		familyCode.AccountID = decodeString(f[1])
-		familyCode.FamilyCode = decodeString(f[2])
+		familyCode.AccountID = msgBuf.readString()
+		familyCode.FamilyCode = msgBuf.readString()
 		familyCodes = append(familyCodes, familyCode)
-		f = f[2:]
 	}
 
 	d.wrapper.FamilyCodes(familyCodes)
 
 }
-func (d *ibDecoder) processSymbolSamplesMsg(f [][]byte) {
-	reqID := decodeInt(f[0])
+func (d *ibDecoder) processSymbolSamplesMsg(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
 	contractDescriptions := []ContractDescription{}
-	for cdCount := decodeInt(f[1]); cdCount > 0; cdCount-- {
+	for cdCount := msgBuf.readInt(); cdCount > 0; cdCount-- {
 		cd := ContractDescription{}
-		cd.Contract.ContractID = decodeInt(f[2])
-		cd.Contract.Symbol = decodeString(f[3])
-		cd.Contract.SecurityType = decodeString(f[4])
-		cd.Contract.PrimaryExchange = decodeString(f[5])
-		cd.Contract.Currency = decodeString(f[6])
+		cd.Contract.ContractID = msgBuf.readInt()
+		cd.Contract.Symbol = msgBuf.readString()
+		cd.Contract.SecurityType = msgBuf.readString()
+		cd.Contract.PrimaryExchange = msgBuf.readString()
+		cd.Contract.Currency = msgBuf.readString()
 
 		cd.DerivativeSecTypes = []string{}
 
-		for sdtCount := decodeInt(f[7]); sdtCount > 0; sdtCount-- {
-			derivativeSecType := decodeString(f[8])
+		for sdtCount := msgBuf.readInt(); sdtCount > 0; sdtCount-- {
+			derivativeSecType := msgBuf.readString()
 			cd.DerivativeSecTypes = append(cd.DerivativeSecTypes, derivativeSecType)
-			f = f[1:]
 		}
 		contractDescriptions = append(contractDescriptions, cd)
-		f = f[6:]
 	}
 
 	d.wrapper.SymbolSamples(reqID, contractDescriptions)
 
 }
-func (d *ibDecoder) processSmartComponents(f [][]byte) {
-	reqID := decodeInt(f[0])
+func (d *ibDecoder) processSmartComponents(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
 
 	smartComponents := []SmartComponent{}
 
-	for scmCount := decodeInt(f[1]); scmCount > 0; scmCount-- {
+	for scmCount := msgBuf.readInt(); scmCount > 0; scmCount-- {
 		smartComponent := SmartComponent{}
-		smartComponent.BitNumber = decodeInt(f[2])
-		smartComponent.Exchange = decodeString(f[3])
-		smartComponent.ExchangeLetter = decodeString(f[4])
+		smartComponent.BitNumber = msgBuf.readInt()
+		smartComponent.Exchange = msgBuf.readString()
+		smartComponent.ExchangeLetter = msgBuf.readString()
 		smartComponents = append(smartComponents, smartComponent)
-		f = f[3:]
 	}
 
 	d.wrapper.SmartComponents(reqID, smartComponents)
 
 }
-func (d *ibDecoder) processTickReqParams(f [][]byte) {
-	tickerID := decodeInt(f[0])
-	minTick := decodeFloat(f[1])
-	bboExchange := decodeString(f[2])
-	snapshotPermissions := decodeInt(f[3])
+func (d *ibDecoder) processTickReqParams(msgBuf *msgBuffer) {
+	tickerID := msgBuf.readInt()
+	minTick := msgBuf.readFloat()
+	bboExchange := msgBuf.readString()
+	snapshotPermissions := msgBuf.readInt()
 
 	d.wrapper.TickReqParams(tickerID, minTick, bboExchange, snapshotPermissions)
 }
 
-func (d *ibDecoder) processMktDepthExchanges(f [][]byte) {
+func (d *ibDecoder) processMktDepthExchanges(msgBuf *msgBuffer) {
 	depthMktDataDescriptions := []DepthMktDataDescription{}
-	for descCount := decodeInt(f[0]); descCount > 0; descCount-- {
+	for descCount := msgBuf.readInt(); descCount > 0; descCount-- {
 		desc := DepthMktDataDescription{}
-		desc.Exchange = decodeString(f[1])
-		desc.SecurityType = decodeString(f[2])
+		desc.Exchange = msgBuf.readString()
+		desc.SecurityType = msgBuf.readString()
 		if d.version >= mMIN_SERVER_VER_SERVICE_DATA_TYPE {
-			desc.ListingExchange = decodeString(f[3])
-			desc.SecurityType = decodeString(f[4])
-			desc.AggGroup = decodeInt(f[5])
-			f = f[3:]
+			desc.ListingExchange = msgBuf.readString()
+			desc.SecurityType = msgBuf.readString()
+			desc.AggGroup = msgBuf.readInt()
 		} else {
-			f = f[1:]
+			_ = msgBuf.readString()
 		}
 		depthMktDataDescriptions = append(depthMktDataDescriptions, desc)
-		f = f[2:]
 	}
 
 	d.wrapper.MktDepthExchanges(depthMktDataDescriptions)
 }
 
-func (d *ibDecoder) processHeadTimestamp(f [][]byte) {
-	reqID := decodeInt(f[0])
-	headTimestamp := decodeString(f[1])
+func (d *ibDecoder) processHeadTimestamp(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	headTimestamp := msgBuf.readString()
 
 	d.wrapper.HeadTimestamp(reqID, headTimestamp)
 }
-func (d *ibDecoder) processTickNews(f [][]byte) {
-	tickerID := decodeInt(f[0])
-	timeStamp := decodeInt(f[1])
-	providerCode := decodeString(f[2])
-	articleID := decodeString(f[3])
-	headline := decodeString(f[4])
-	extraData := decodeString(f[5])
+func (d *ibDecoder) processTickNews(msgBuf *msgBuffer) {
+	tickerID := msgBuf.readInt()
+	timeStamp := msgBuf.readInt()
+	providerCode := msgBuf.readString()
+	articleID := msgBuf.readString()
+	headline := msgBuf.readString()
+	extraData := msgBuf.readString()
 
 	d.wrapper.TickNews(tickerID, timeStamp, providerCode, articleID, headline, extraData)
 }
-func (d *ibDecoder) processNewsProviders(f [][]byte) {
+func (d *ibDecoder) processNewsProviders(msgBuf *msgBuffer) {
 	newsProviders := []NewsProvider{}
 
-	for npCount := decodeInt(f[0]); npCount > 0; npCount-- {
+	for npCount := msgBuf.readInt(); npCount > 0; npCount-- {
 		provider := NewsProvider{}
-		provider.Name = decodeString(f[1])
-		provider.Code = decodeString(f[2])
+		provider.Name = msgBuf.readString()
+		provider.Code = msgBuf.readString()
 		newsProviders = append(newsProviders, provider)
-		f = f[2:]
 	}
 
 	d.wrapper.NewsProviders(newsProviders)
 }
-func (d *ibDecoder) processNewsArticle(f [][]byte) {
-	reqID := decodeInt(f[0])
-	articleType := decodeInt(f[1])
-	articleText := decodeString(f[2])
+func (d *ibDecoder) processNewsArticle(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	articleType := msgBuf.readInt()
+	articleText := msgBuf.readString()
 
 	d.wrapper.NewsArticle(reqID, articleType, articleText)
 }
-func (d *ibDecoder) processHistoricalNews(f [][]byte) {
-	reqID := decodeInt(f[0])
-	time := decodeString(f[1])
-	providerCode := decodeString(f[2])
-	articleID := decodeString(f[3])
-	headline := decodeString(f[4])
+func (d *ibDecoder) processHistoricalNews(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	time := msgBuf.readString()
+	providerCode := msgBuf.readString()
+	articleID := msgBuf.readString()
+	headline := msgBuf.readString()
 
 	d.wrapper.HistoricalNews(reqID, time, providerCode, articleID, headline)
 }
-func (d *ibDecoder) processHistoricalNewsEnd(f [][]byte) {
-	reqID := decodeInt(f[0])
-	hasMore := decodeBool(f[1])
+func (d *ibDecoder) processHistoricalNewsEnd(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	hasMore := msgBuf.readBool()
 
 	d.wrapper.HistoricalNewsEnd(reqID, hasMore)
 }
-func (d *ibDecoder) processHistogramData(f [][]byte) {
-	reqID := decodeInt(f[0])
+func (d *ibDecoder) processHistogramData(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
 
 	histogram := []HistogramData{}
 
-	for pn := decodeInt(f[1]); pn > 0; pn-- {
+	for pn := msgBuf.readInt(); pn > 0; pn-- {
 		p := HistogramData{}
-		p.Price = decodeFloat(f[2])
-		p.Count = decodeInt(f[3])
+		p.Price = msgBuf.readFloat()
+		p.Count = msgBuf.readInt()
 		histogram = append(histogram, p)
-		f = f[2:]
 	}
 
 	d.wrapper.HistogramData(reqID, histogram)
 }
-func (d *ibDecoder) processRerouteMktDataReq(f [][]byte) {
-	reqID := decodeInt(f[0])
-	contractID := decodeInt(f[1])
-	exchange := decodeString(f[2])
+func (d *ibDecoder) processRerouteMktDataReq(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	contractID := msgBuf.readInt()
+	exchange := msgBuf.readString()
 
 	d.wrapper.RerouteMktDataReq(reqID, contractID, exchange)
 }
-func (d *ibDecoder) processRerouteMktDepthReq(f [][]byte) {
-	reqID := decodeInt(f[0])
-	contractID := decodeInt(f[1])
-	exchange := decodeString(f[2])
+func (d *ibDecoder) processRerouteMktDepthReq(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	contractID := msgBuf.readInt()
+	exchange := msgBuf.readString()
 
 	d.wrapper.RerouteMktDepthReq(reqID, contractID, exchange)
 }
-func (d *ibDecoder) processMarketRuleMsg(f [][]byte) {
-	marketRuleID := decodeInt(f[0])
+func (d *ibDecoder) processMarketRuleMsg(msgBuf *msgBuffer) {
+	marketRuleID := msgBuf.readInt()
 
 	priceIncrements := []PriceIncrement{}
-	for n := decodeInt(f[1]); n > 0; n-- {
+	for n := msgBuf.readInt(); n > 0; n-- {
 		priceInc := PriceIncrement{}
-		priceInc.LowEdge = decodeFloat(f[2])
-		priceInc.Increment = decodeFloat(f[3])
+		priceInc.LowEdge = msgBuf.readFloat()
+		priceInc.Increment = msgBuf.readFloat()
 		priceIncrements = append(priceIncrements, priceInc)
-		f = f[2:]
 	}
 
 	d.wrapper.MarketRule(marketRuleID, priceIncrements)
 }
-func (d *ibDecoder) processPnLMsg(f [][]byte) {
-	reqID := decodeInt(f[0])
-	dailyPnL := decodeFloat(f[1])
+func (d *ibDecoder) processPnLMsg(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	dailyPnL := msgBuf.readFloat()
 	var unrealizedPnL float64
 	var realizedPnL float64
 
 	if d.version >= mMIN_SERVER_VER_UNREALIZED_PNL {
-		unrealizedPnL = decodeFloat(f[2])
-		f = f[1:]
+		unrealizedPnL = msgBuf.readFloat()
 	}
 
 	if d.version >= mMIN_SERVER_VER_REALIZED_PNL {
-		realizedPnL = decodeFloat(f[2])
-		f = f[1:]
+		realizedPnL = msgBuf.readFloat()
 	}
 
 	d.wrapper.Pnl(reqID, dailyPnL, unrealizedPnL, realizedPnL)
 
 }
-func (d *ibDecoder) processPnLSingleMsg(f [][]byte) {
-	reqID := decodeInt(f[0])
-	position := decodeInt(f[1])
-	dailyPnL := decodeFloat(f[2])
+func (d *ibDecoder) processPnLSingleMsg(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	position := msgBuf.readInt()
+	dailyPnL := msgBuf.readFloat()
 	var unrealizedPnL float64
 	var realizedPnL float64
 
 	if d.version >= mMIN_SERVER_VER_UNREALIZED_PNL {
-		unrealizedPnL = decodeFloat(f[3])
-		f = f[1:]
+		unrealizedPnL = msgBuf.readFloat()
 	}
 
 	if d.version >= mMIN_SERVER_VER_REALIZED_PNL {
-		realizedPnL = decodeFloat(f[3])
-		f = f[1:]
+		realizedPnL = msgBuf.readFloat()
 	}
 
-	value := decodeFloat(f[3])
+	value := msgBuf.readFloat()
 
 	d.wrapper.PnlSingle(reqID, position, dailyPnL, unrealizedPnL, realizedPnL, value)
 }
-func (d *ibDecoder) processHistoricalTicks(f [][]byte) {
-	reqID := decodeInt(f[0])
+func (d *ibDecoder) processHistoricalTicks(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
 
 	ticks := []HistoricalTick{}
 
-	for tickCount := decodeInt(f[1]); tickCount > 0; tickCount-- {
+	for tickCount := msgBuf.readInt(); tickCount > 0; tickCount-- {
 		historicalTick := HistoricalTick{}
-		historicalTick.Time = decodeInt(f[2])
-		_ = decodeString(f[3])
-		historicalTick.Price = decodeFloat(f[4])
-		historicalTick.Size = decodeInt(f[5])
+		historicalTick.Time = msgBuf.readInt()
+		_ = msgBuf.readString()
+		historicalTick.Price = msgBuf.readFloat()
+		historicalTick.Size = msgBuf.readInt()
 		ticks = append(ticks, historicalTick)
-		f = f[4:]
 	}
-	f = f[1:]
 
-	done := decodeBool(f[1])
+	done := msgBuf.readBool()
 
 	d.wrapper.HistoricalTicks(reqID, ticks, done)
 }
-func (d *ibDecoder) processHistoricalTicksBidAsk(f [][]byte) {
-	reqID := decodeInt(f[0])
+func (d *ibDecoder) processHistoricalTicksBidAsk(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
 
 	ticks := []HistoricalTickBidAsk{}
 
-	for tickCount := decodeInt(f[1]); tickCount > 0; tickCount-- {
+	for tickCount := msgBuf.readInt(); tickCount > 0; tickCount-- {
 		historicalTickBidAsk := HistoricalTickBidAsk{}
-		historicalTickBidAsk.Time = decodeInt(f[2])
+		historicalTickBidAsk.Time = msgBuf.readInt()
 
-		mask := decodeInt(f[3])
+		mask := msgBuf.readInt()
 		tickAttribBidAsk := TickAttribBidAsk{}
 		tickAttribBidAsk.AskPastHigh = mask&1 != 0
 		tickAttribBidAsk.BidPastLow = mask&2 != 0
 
 		historicalTickBidAsk.TickAttirbBidAsk = tickAttribBidAsk
-		historicalTickBidAsk.PriceBid = decodeFloat(f[4])
-		historicalTickBidAsk.PriceAsk = decodeFloat(f[5])
-		historicalTickBidAsk.SizeBid = decodeInt(f[6])
-		historicalTickBidAsk.SizeAsk = decodeInt(f[7])
+		historicalTickBidAsk.PriceBid = msgBuf.readFloat()
+		historicalTickBidAsk.PriceAsk = msgBuf.readFloat()
+		historicalTickBidAsk.SizeBid = msgBuf.readInt()
+		historicalTickBidAsk.SizeAsk = msgBuf.readInt()
 		ticks = append(ticks, historicalTickBidAsk)
-		f = f[6:]
 	}
-	f = f[1:]
 
-	done := decodeBool(f[1])
+	done := msgBuf.readBool()
 
 	d.wrapper.HistoricalTicksBidAsk(reqID, ticks, done)
 }
-func (d *ibDecoder) processHistoricalTicksLast(f [][]byte) {
-	reqID := decodeInt(f[0])
+func (d *ibDecoder) processHistoricalTicksLast(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
 
 	ticks := []HistoricalTickLast{}
 
-	for tickCount := decodeInt(f[1]); tickCount > 0; tickCount-- {
+	for tickCount := msgBuf.readInt(); tickCount > 0; tickCount-- {
 		historicalTickLast := HistoricalTickLast{}
-		historicalTickLast.Time = decodeInt(f[2])
+		historicalTickLast.Time = msgBuf.readInt()
 
-		mask := decodeInt(f[3])
+		mask := msgBuf.readInt()
 		tickAttribLast := TickAttribLast{}
 		tickAttribLast.PastLimit = mask&1 != 0
 		tickAttribLast.Unreported = mask&2 != 0
 
 		historicalTickLast.TickAttribLast = tickAttribLast
-		historicalTickLast.Price = decodeFloat(f[4])
-		historicalTickLast.Size = decodeInt(f[5])
-		historicalTickLast.Exchange = decodeString(f[6])
-		historicalTickLast.SpecialConditions = decodeString(f[7])
+		historicalTickLast.Price = msgBuf.readFloat()
+		historicalTickLast.Size = msgBuf.readInt()
+		historicalTickLast.Exchange = msgBuf.readString()
+		historicalTickLast.SpecialConditions = msgBuf.readString()
 		ticks = append(ticks, historicalTickLast)
-		f = f[6:]
 	}
-	f = f[1:]
 
-	done := decodeBool(f[1])
+	done := msgBuf.readBool()
 
 	d.wrapper.HistoricalTicksLast(reqID, ticks, done)
 }
-func (d *ibDecoder) processTickByTickMsg(f [][]byte) {
-	reqID := decodeInt(f[0])
-	tickType := decodeInt(f[1])
-	time := decodeInt(f[2])
+func (d *ibDecoder) processTickByTickMsg(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	tickType := msgBuf.readInt()
+	time := msgBuf.readInt()
 
 	switch tickType {
 	case 0:
 		break
 	case 1, 2:
-		price := decodeFloat(f[3])
-		size := decodeInt(f[4])
+		price := msgBuf.readFloat()
+		size := msgBuf.readInt()
 
-		mask := decodeInt(f[5])
+		mask := msgBuf.readInt()
 		tickAttribLast := TickAttribLast{}
 		tickAttribLast.PastLimit = mask&1 != 0
 		tickAttribLast.Unreported = mask&2 != 0
 
-		exchange := decodeString(f[6])
-		specialConditions := decodeString(f[7])
+		exchange := msgBuf.readString()
+		specialConditions := msgBuf.readString()
 
 		d.wrapper.TickByTickAllLast(reqID, tickType, time, price, size, tickAttribLast, exchange, specialConditions)
 	case 3:
-		bidPrice := decodeFloat(f[3])
-		askPrice := decodeFloat(f[4])
-		bidSize := decodeInt(f[5])
-		askSize := decodeInt(f[6])
+		bidPrice := msgBuf.readFloat()
+		askPrice := msgBuf.readFloat()
+		bidSize := msgBuf.readInt()
+		askSize := msgBuf.readInt()
 
-		mask := decodeInt(f[7])
+		mask := msgBuf.readInt()
 		tickAttribBidAsk := TickAttribBidAsk{}
 		tickAttribBidAsk.BidPastLow = mask&1 != 0
 		tickAttribBidAsk.AskPastHigh = mask&2 != 0
 
 		d.wrapper.TickByTickBidAsk(reqID, time, bidPrice, askPrice, bidSize, askSize, tickAttribBidAsk)
 	case 4:
-		midPoint := decodeFloat(f[3])
+		midPoint := msgBuf.readFloat()
 
 		d.wrapper.TickByTickMidPoint(reqID, time, midPoint)
 	}
 }
 
-func (d *ibDecoder) processOrderBoundMsg(f [][]byte) {
-	reqID := decodeInt(f[0])
-	apiClientID := decodeInt(f[1])
-	apiOrderID := decodeInt(f[2])
+func (d *ibDecoder) processOrderBoundMsg(msgBuf *msgBuffer) {
+	reqID := msgBuf.readInt()
+	apiClientID := msgBuf.readInt()
+	apiOrderID := msgBuf.readInt()
 
 	d.wrapper.OrderBound(reqID, apiClientID, apiOrderID)
 
 }
 
-func (d *ibDecoder) processMarketDepthL2Msg(f [][]byte) {
+func (d *ibDecoder) processMarketDepthL2Msg(msgBuf *msgBuffer) {
+	_ = msgBuf.readString()
+	_ = msgBuf.readInt()
+	reqID := msgBuf.readInt()
 
+	position := msgBuf.readInt()
+	marketMaker := msgBuf.readString()
+	operation := msgBuf.readInt()
+	side := msgBuf.readInt()
+	price := msgBuf.readFloat()
+	size := msgBuf.readInt()
+	isSmartDepth := false
+
+	if d.version >= mMIN_SERVER_VER_SMART_DEPTH {
+		isSmartDepth = msgBuf.readBool()
+	}
+
+	d.wrapper.UpdateMktDepthL2(reqID, position, marketMaker, operation, side, price, size, isSmartDepth)
 }
 
-func (d *ibDecoder) processCompletedOrderMsg(f [][]byte) {
+func (d *ibDecoder) processCompletedOrderMsg(msgBuf *msgBuffer) {
 	o := &Order{}
 	c := &Contract{}
 	orderState := &OrderState{}
 
 	version := UNSETINT
 
-	c.ContractID = decodeInt(f[0])
-	c.Symbol = decodeString(f[1])
-	c.SecurityType = decodeString(f[2])
-	c.Expiry = decodeString(f[3])
-	c.Strike = decodeFloat(f[4])
-	c.Right = decodeString(f[5])
+	c.ContractID = msgBuf.readInt()
+	c.Symbol = msgBuf.readString()
+	c.SecurityType = msgBuf.readString()
+	c.Expiry = msgBuf.readString()
+	c.Strike = msgBuf.readFloat()
+	c.Right = msgBuf.readString()
 
 	if d.version >= 32 {
-		c.Multiplier = decodeString(f[6])
-		f = f[1:]
+		c.Multiplier = msgBuf.readString()
 	}
 
-	c.Exchange = decodeString(f[6])
-	c.Currency = decodeString(f[7])
-	c.LocalSymbol = decodeString(f[8])
+	c.Exchange = msgBuf.readString()
+	c.Currency = msgBuf.readString()
+	c.LocalSymbol = msgBuf.readString()
 
 	if d.version >= 32 {
-		c.TradingClass = decodeString(f[9])
-		f = f[1:]
+		c.TradingClass = msgBuf.readString()
 	}
 
-	o.Action = decodeString(f[9])
+	o.Action = msgBuf.readString()
 	if d.version >= mMIN_SERVER_VER_FRACTIONAL_POSITIONS {
-		o.TotalQuantity = decodeFloat(f[10])
+		o.TotalQuantity = msgBuf.readFloat()
 	} else {
-		o.TotalQuantity = float64(decodeInt(f[10]))
+		o.TotalQuantity = float64(msgBuf.readInt())
 	}
 
-	o.OrderType = decodeString(f[11])
+	o.OrderType = msgBuf.readString()
 	if version < 29 {
-		o.LimitPrice = decodeFloat(f[12])
+		o.LimitPrice = msgBuf.readFloat()
 	} else {
-		o.LimitPrice = decodeFloatCheckUnset(f[12])
+		o.LimitPrice = msgBuf.readFloatCheckUnset()
 	}
 
 	if version < 30 {
-		o.AuxPrice = decodeFloat(f[13])
+		o.AuxPrice = msgBuf.readFloat()
 	} else {
-		o.AuxPrice = decodeFloatCheckUnset(f[13])
+		o.AuxPrice = msgBuf.readFloatCheckUnset()
 	}
 
-	o.TIF = decodeString(f[14])
-	o.OCAGroup = decodeString(f[15])
-	o.Account = decodeString(f[16])
-	o.OpenClose = decodeString(f[17])
+	o.TIF = msgBuf.readString()
+	o.OCAGroup = msgBuf.readString()
+	o.Account = msgBuf.readString()
+	o.OpenClose = msgBuf.readString()
 
-	o.Origin = decodeInt(f[18])
+	o.Origin = msgBuf.readInt()
 
-	o.OrderRef = decodeString(f[19])
-	o.ClientID = decodeInt(f[20])
-	o.PermID = decodeInt(f[21])
+	o.OrderRef = msgBuf.readString()
+	o.ClientID = msgBuf.readInt()
+	o.PermID = msgBuf.readInt()
 
-	o.OutsideRTH = decodeBool(f[22])
-	o.Hidden = decodeBool(f[23])
-	o.DiscretionaryAmount = decodeFloat(f[24])
-	o.GoodAfterTime = decodeString(f[25])
+	o.OutsideRTH = msgBuf.readBool()
+	o.Hidden = msgBuf.readBool()
+	o.DiscretionaryAmount = msgBuf.readFloat()
+	o.GoodAfterTime = msgBuf.readString()
 
-	o.FAGroup = decodeString(f[26])
-	o.FAMethod = decodeString(f[27])
-	o.FAPercentage = decodeString(f[28])
-	o.FAProfile = decodeString(f[29])
+	o.FAGroup = msgBuf.readString()
+	o.FAMethod = msgBuf.readString()
+	o.FAPercentage = msgBuf.readString()
+	o.FAProfile = msgBuf.readString()
 
 	if d.version >= mMIN_SERVER_VER_MODELS_SUPPORT {
-		o.ModelCode = decodeString(f[30])
-		f = f[1:]
+		o.ModelCode = msgBuf.readString()
 	}
 
-	o.GoodTillDate = decodeString(f[30])
+	o.GoodTillDate = msgBuf.readString()
 
-	o.Rule80A = decodeString(f[31])
-	o.PercentOffset = decodeFloatCheckUnset(f[32]) //show_unset
-	o.SettlingFirm = decodeString(f[33])
+	o.Rule80A = msgBuf.readString()
+	o.PercentOffset = msgBuf.readFloatCheckUnset() //show_unset
+	o.SettlingFirm = msgBuf.readString()
 
 	//ShortSaleParams
-	o.ShortSaleSlot = decodeInt(f[34])
-	o.DesignatedLocation = decodeString(f[35])
+	o.ShortSaleSlot = msgBuf.readInt()
+	o.DesignatedLocation = msgBuf.readString()
 
 	if d.version == mMIN_SERVER_VER_SSHORTX_OLD {
-		f = f[1:]
+		_ = msgBuf.readString()
 	} else if version >= 23 {
-		o.ExemptCode = decodeInt(f[36])
-		f = f[1:]
+		o.ExemptCode = msgBuf.readInt()
 	}
 
 	//BoxOrderParams
-	o.StartingPrice = decodeFloatCheckUnset(f[36]) //show_unset
-	o.StockRefPrice = decodeFloatCheckUnset(f[37]) //show_unset
-	o.Delta = decodeFloatCheckUnset(f[38])         //show_unset
+	o.StartingPrice = msgBuf.readFloatCheckUnset() //show_unset
+	o.StockRefPrice = msgBuf.readFloatCheckUnset() //show_unset
+	o.Delta = msgBuf.readFloatCheckUnset()         //show_unset
 
 	//PegToStkOrVolOrderParams
-	o.StockRangeLower = decodeFloatCheckUnset(f[39]) //show_unset
-	o.StockRangeUpper = decodeFloatCheckUnset(f[40]) //show_unset
+	o.StockRangeLower = msgBuf.readFloatCheckUnset() //show_unset
+	o.StockRangeUpper = msgBuf.readFloatCheckUnset() //show_unset
 
-	o.DisplaySize = decodeInt(f[41])
-	o.SweepToFill = decodeBool(f[42])
-	o.AllOrNone = decodeBool(f[43])
-	o.MinQty = decodeIntCheckUnset(f[44]) //show_unset
-	o.OCAType = decodeInt(f[45])
-	o.TriggerMethod = decodeInt(f[46])
+	o.DisplaySize = msgBuf.readInt()
+	o.SweepToFill = msgBuf.readBool()
+	o.AllOrNone = msgBuf.readBool()
+	o.MinQty = msgBuf.readIntCheckUnset() //show_unset
+	o.OCAType = msgBuf.readInt()
+	o.TriggerMethod = msgBuf.readInt()
 
 	//VolOrderParams
-	o.Volatility = decodeFloatCheckUnset(f[47]) //show_unset
-	o.VolatilityType = decodeInt(f[48])
-	o.DeltaNeutralOrderType = decodeString(f[49])
-	o.DeltaNeutralAuxPrice = decodeFloatCheckUnset(f[50])
+	o.Volatility = msgBuf.readFloatCheckUnset() //show_unset
+	o.VolatilityType = msgBuf.readInt()
+	o.DeltaNeutralOrderType = msgBuf.readString()
+	o.DeltaNeutralAuxPrice = msgBuf.readFloatCheckUnset()
 
 	if version >= 27 && o.DeltaNeutralOrderType != "" {
-		o.DeltaNeutralContractID = decodeInt(f[51])
-		o.DeltaNeutralSettlingFirm = decodeString(f[52])
-		o.DeltaNeutralClearingAccount = decodeString(f[53])
-		o.DeltaNeutralClearingIntent = decodeString(f[54])
-		f = f[4:]
+		o.DeltaNeutralContractID = msgBuf.readInt()
+		o.DeltaNeutralSettlingFirm = msgBuf.readString()
+		o.DeltaNeutralClearingAccount = msgBuf.readString()
+		o.DeltaNeutralClearingIntent = msgBuf.readString()
 	}
 
 	if version >= 31 && o.DeltaNeutralOrderType != "" {
-		o.DeltaNeutralOpenClose = decodeString(f[51])
-		o.DeltaNeutralShortSale = decodeBool(f[52])
-		o.DeltaNeutralShortSaleSlot = decodeInt(f[53])
-		o.DeltaNeutralDesignatedLocation = decodeString(f[54])
-		f = f[4:]
+		o.DeltaNeutralOpenClose = msgBuf.readString()
+		o.DeltaNeutralShortSale = msgBuf.readBool()
+		o.DeltaNeutralShortSaleSlot = msgBuf.readInt()
+		o.DeltaNeutralDesignatedLocation = msgBuf.readString()
 	}
 
-	o.ContinuousUpdate = decodeBool(f[51])
-	o.ReferencePriceType = decodeInt(f[52])
+	o.ContinuousUpdate = msgBuf.readBool()
+	o.ReferencePriceType = msgBuf.readInt()
 
 	//TrailParams
-	o.TrailStopPrice = decodeFloatCheckUnset(f[53])
+	o.TrailStopPrice = msgBuf.readFloatCheckUnset()
 
 	if version >= 30 {
-		o.TrailingPercent = decodeFloatCheckUnset(f[54]) //show_unset
-		f = f[1:]
+		o.TrailingPercent = msgBuf.readFloatCheckUnset() //show_unset
 	}
 
 	//ComboLegs
-	c.ComboLegsDescription = decodeString(f[54])
+	c.ComboLegsDescription = msgBuf.readString()
 
 	if version >= 29 {
 		c.ComboLegs = []ComboLeg{}
-		for comboLegsCount := decodeInt(f[55]); comboLegsCount > 0; comboLegsCount-- {
-			fmt.Println("comboLegsCount:", comboLegsCount)
+		for comboLegsCount := msgBuf.readInt(); comboLegsCount > 0; comboLegsCount-- {
+			// fmt.Println("comboLegsCount:", comboLegsCount)
 			comboleg := ComboLeg{}
-			comboleg.ContractID = decodeInt(f[56])
-			comboleg.Ratio = decodeInt(f[57])
-			comboleg.Action = decodeString(f[58])
-			comboleg.Exchange = decodeString(f[59])
-			comboleg.OpenClose = decodeInt(f[60])
-			comboleg.ShortSaleSlot = decodeInt(f[61])
-			comboleg.DesignatedLocation = decodeString(f[62])
-			comboleg.ExemptCode = decodeInt(f[63])
+			comboleg.ContractID = msgBuf.readInt()
+			comboleg.Ratio = msgBuf.readInt()
+			comboleg.Action = msgBuf.readString()
+			comboleg.Exchange = msgBuf.readString()
+			comboleg.OpenClose = msgBuf.readInt()
+			comboleg.ShortSaleSlot = msgBuf.readInt()
+			comboleg.DesignatedLocation = msgBuf.readString()
+			comboleg.ExemptCode = msgBuf.readInt()
 			c.ComboLegs = append(c.ComboLegs, comboleg)
-			f = f[8:]
 		}
-		f = f[1:]
 
 		o.OrderComboLegs = []OrderComboLeg{}
-		for orderComboLegsCount := decodeInt(f[55]); orderComboLegsCount > 0; orderComboLegsCount-- {
+		for orderComboLegsCount := msgBuf.readInt(); orderComboLegsCount > 0; orderComboLegsCount-- {
 			orderComboLeg := OrderComboLeg{}
-			orderComboLeg.Price = decodeFloatCheckUnset(f[56])
+			orderComboLeg.Price = msgBuf.readFloatCheckUnset()
 			o.OrderComboLegs = append(o.OrderComboLegs, orderComboLeg)
-			f = f[1:]
 		}
-		f = f[1:]
 	}
 
 	//SmartComboRoutingParams
 	if version >= 26 {
 		o.SmartComboRoutingParams = []TagValue{}
-		for smartComboRoutingParamsCount := decodeInt(f[55]); smartComboRoutingParamsCount > 0; smartComboRoutingParamsCount-- {
+		for smartComboRoutingParamsCount := msgBuf.readInt(); smartComboRoutingParamsCount > 0; smartComboRoutingParamsCount-- {
 			tagValue := TagValue{}
-			tagValue.Tag = decodeString(f[56])
-			tagValue.Value = decodeString(f[57])
+			tagValue.Tag = msgBuf.readString()
+			tagValue.Value = msgBuf.readString()
 			o.SmartComboRoutingParams = append(o.SmartComboRoutingParams, tagValue)
-			f = f[2:]
 		}
-
-		f = f[1:]
 	}
 
 	//ScaleOrderParams
 	if version >= 20 {
-		o.ScaleInitLevelSize = decodeIntCheckUnset(f[55]) //show_unset
-		o.ScaleSubsLevelSize = decodeIntCheckUnset(f[56]) //show_unset
+		o.ScaleInitLevelSize = msgBuf.readIntCheckUnset() //show_unset
+		o.ScaleSubsLevelSize = msgBuf.readIntCheckUnset() //show_unset
 	} else {
-		o.NotSuppScaleNumComponents = decodeIntCheckUnset(f[55])
-		o.ScaleInitLevelSize = decodeIntCheckUnset(f[56])
+		o.NotSuppScaleNumComponents = msgBuf.readIntCheckUnset()
+		o.ScaleInitLevelSize = msgBuf.readIntCheckUnset()
 	}
 
-	o.ScalePriceIncrement = decodeFloatCheckUnset(f[57])
+	o.ScalePriceIncrement = msgBuf.readFloatCheckUnset()
 
 	if version >= 28 && o.ScalePriceIncrement != UNSETFLOAT && o.ScalePriceIncrement > 0.0 {
-		o.ScalePriceAdjustValue = decodeFloatCheckUnset(f[58])
-		o.ScalePriceAdjustInterval = decodeIntCheckUnset(f[59])
-		o.ScaleProfitOffset = decodeFloatCheckUnset(f[60])
-		o.ScaleAutoReset = decodeBool(f[61])
-		o.ScaleInitPosition = decodeIntCheckUnset(f[62])
-		o.ScaleInitFillQty = decodeIntCheckUnset(f[63])
-		o.ScaleRandomPercent = decodeBool(f[64])
-		f = f[7:]
+		o.ScalePriceAdjustValue = msgBuf.readFloatCheckUnset()
+		o.ScalePriceAdjustInterval = msgBuf.readIntCheckUnset()
+		o.ScaleProfitOffset = msgBuf.readFloatCheckUnset()
+		o.ScaleAutoReset = msgBuf.readBool()
+		o.ScaleInitPosition = msgBuf.readIntCheckUnset()
+		o.ScaleInitFillQty = msgBuf.readIntCheckUnset()
+		o.ScaleRandomPercent = msgBuf.readBool()
 	}
 
 	//HedgeParams
 	if version >= 24 {
-		o.HedgeType = decodeString(f[58])
+		o.HedgeType = msgBuf.readString()
 		if o.HedgeType != "" {
-			o.HedgeParam = decodeString(f[59])
-			f = f[1:]
+			o.HedgeParam = msgBuf.readString()
 		}
-		f = f[1:]
 	}
 
 	// if version >= 25 {
@@ -2057,115 +1996,102 @@ func (d *ibDecoder) processCompletedOrderMsg(f [][]byte) {
 	// 	f = f[1:]
 	// }
 
-	o.ClearingAccount = decodeString(f[58])
-	o.ClearingIntent = decodeString(f[59])
+	o.ClearingAccount = msgBuf.readString()
+	o.ClearingIntent = msgBuf.readString()
 
 	if version >= 22 {
-		o.NotHeld = decodeBool(f[60])
-		f = f[1:]
+		o.NotHeld = msgBuf.readBool()
 	}
 
 	if version >= 20 {
-		deltaNeutralContractPresent := decodeBool(f[60])
+		deltaNeutralContractPresent := msgBuf.readBool()
 		if deltaNeutralContractPresent {
 			c.DeltaNeutralContract = new(DeltaNeutralContract)
-			c.DeltaNeutralContract.ContractID = decodeInt(f[61])
-			c.DeltaNeutralContract.Delta = decodeFloat(f[62])
-			c.DeltaNeutralContract.Price = decodeFloat(f[63])
-			f = f[3:]
+			c.DeltaNeutralContract.ContractID = msgBuf.readInt()
+			c.DeltaNeutralContract.Delta = msgBuf.readFloat()
+			c.DeltaNeutralContract.Price = msgBuf.readFloat()
 		}
-		f = f[1:]
 	}
 
 	if version >= 21 {
-		o.AlgoStrategy = decodeString(f[60])
+		o.AlgoStrategy = msgBuf.readString()
 		if o.AlgoStrategy != "" {
 			o.AlgoParams = []TagValue{}
-			for algoParamsCount := decodeInt(f[61]); algoParamsCount > 0; algoParamsCount-- {
+			for algoParamsCount := msgBuf.readInt(); algoParamsCount > 0; algoParamsCount-- {
 				tagValue := TagValue{}
-				tagValue.Tag = decodeString(f[62])
-				tagValue.Value = decodeString(f[63])
+				tagValue.Tag = msgBuf.readString()
+				tagValue.Value = msgBuf.readString()
 				o.AlgoParams = append(o.AlgoParams, tagValue)
-				f = f[2:]
 			}
 		}
-		f = f[1:]
 	}
 
 	if version >= 33 {
-		o.Solictied = decodeBool(f[60])
-		f = f[1:]
+		o.Solictied = msgBuf.readBool()
 	}
 
-	orderState.Status = decodeString(f[61])
+	orderState.Status = msgBuf.readString()
 
 	if version >= 34 {
-		o.RandomizeSize = decodeBool(f[62])
-		o.RandomizePrice = decodeBool(f[63])
-		f = f[2:]
+		o.RandomizeSize = msgBuf.readBool()
+		o.RandomizePrice = msgBuf.readBool()
 	}
 
 	if d.version >= mMIN_SERVER_VER_PEGGED_TO_BENCHMARK {
 		if o.OrderType == "PEG BENCH" {
-			o.ReferenceContractID = decodeInt(f[62])
-			o.IsPeggedChangeAmountDecrease = decodeBool(f[63])
-			o.PeggedChangeAmount = decodeFloat(f[64])
-			o.ReferenceChangeAmount = decodeFloat(f[65])
-			o.ReferenceExchangeID = decodeString(f[66])
-			f = f[5:]
+			o.ReferenceContractID = msgBuf.readInt()
+			o.IsPeggedChangeAmountDecrease = msgBuf.readBool()
+			o.PeggedChangeAmount = msgBuf.readFloat()
+			o.ReferenceChangeAmount = msgBuf.readFloat()
+			o.ReferenceExchangeID = msgBuf.readString()
 		}
 
 		o.Conditions = []OrderConditioner{}
-		if conditionsSize := decodeInt(f[62]); conditionsSize > 0 {
+		if conditionsSize := msgBuf.readInt(); conditionsSize > 0 {
 			for ; conditionsSize > 0; conditionsSize-- {
-				conditionType := decodeInt(f[63])
-				cond, condSize := InitOrderCondition(conditionType)
-				cond.decode(f[64 : 64+condSize])
+				conditionType := msgBuf.readInt()
+				cond, _ := InitOrderCondition(conditionType)
+				cond.decode(msgBuf)
 
 				o.Conditions = append(o.Conditions, cond)
-				f = f[condSize+1:]
 			}
-			o.ConditionsIgnoreRth = decodeBool(f[63])
-			o.ConditionsCancelOrder = decodeBool(f[64])
-			f = f[2:]
+			o.ConditionsIgnoreRth = msgBuf.readBool()
+			o.ConditionsCancelOrder = msgBuf.readBool()
 		}
 	}
 
-	o.TrailStopPrice = decodeFloat(f[62])
-	o.LimitPriceOffset = decodeFloat(f[63])
+	o.TrailStopPrice = msgBuf.readFloat()
+	o.LimitPriceOffset = msgBuf.readFloat()
 
 	if d.version >= mMIN_SERVER_VER_CASH_QTY {
-		o.CashQty = decodeFloat(f[64])
-		f = f[1:]
+		o.CashQty = msgBuf.readFloat()
 	}
 
 	if d.version >= mMIN_SERVER_VER_AUTO_PRICE_FOR_HEDGE {
-		o.DontUseAutoPriceForHedge = decodeBool(f[64])
-		f = f[1:]
+		o.DontUseAutoPriceForHedge = msgBuf.readBool()
 	}
 
 	if d.version >= mMIN_SERVER_VER_ORDER_CONTAINER {
-		o.IsOmsContainer = decodeBool(f[64])
-		f = f[1:]
+		o.IsOmsContainer = msgBuf.readBool()
 	}
 
-	o.AutoCancelDate = decodeString(f[64])
-	o.FilledQuantity = decodeFloat(f[65])
-	o.RefFuturesConId = decodeInt(f[66])
-	o.AutoCancelParent = decodeBool(f[67])
-	o.Shareholder = decodeString(f[68])
-	o.ImbalanceOnly = decodeBool(f[69])
-	o.RouteMarketableToBbo = decodeBool(f[70])
-	o.ParenPermID = decodeInt(f[70])
+	o.AutoCancelDate = msgBuf.readString()
+	o.FilledQuantity = msgBuf.readFloat()
+	o.RefFuturesConId = msgBuf.readInt()
+	o.AutoCancelParent = msgBuf.readBool()
+	o.Shareholder = msgBuf.readString()
+	o.ImbalanceOnly = msgBuf.readBool()
+	o.RouteMarketableToBbo = msgBuf.readBool()
+	o.ParenPermID = msgBuf.readInt()
 
-	orderState.CompletedTime = decodeString(f[71])
-	orderState.CompletedStatus = decodeString(f[72])
+	orderState.CompletedTime = msgBuf.readString()
+	orderState.CompletedStatus = msgBuf.readString()
 
 	d.wrapper.CompletedOrder(c, o, orderState)
 }
 
 // ----------------------------------------------------
 
-func (d *ibDecoder) processCompletedOrdersEndMsg(f [][]byte) {
+func (d *ibDecoder) processCompletedOrdersEndMsg(msgBuf *msgBuffer) {
 	d.wrapper.CompletedOrdersEnd()
 }

@@ -1,6 +1,7 @@
 package ibapi
 
 import (
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -93,14 +94,23 @@ type IbWrapper interface {
 }
 
 type Wrapper struct {
+	orderID int64
+}
+
+func (w *Wrapper) GetNextOrderID() (i int64) {
+	i = w.orderID
+	atomic.AddInt64(&w.orderID, 1)
+	return
 }
 
 func (w Wrapper) ConnectAck() {
 	log.Printf("<connectAck>...")
 }
 
-func (w Wrapper) NextValidID(reqID int64) {
+func (w *Wrapper) NextValidID(reqID int64) {
+	atomic.StoreInt64(&w.orderID, reqID)
 	log.WithField("reqID", reqID).Printf("<nextValidID>: %v.", reqID)
+
 }
 
 func (w Wrapper) ManagedAccounts(accountsList []string) {
@@ -380,7 +390,7 @@ func (w Wrapper) RerouteMktDepthReq(reqID int64, contractID int64, exchange stri
 }
 
 func (w Wrapper) SecurityDefinitionOptionParameter(reqID int64, exchange string, underlyingContractID int64, tradingClass string, multiplier string, expirations []string, strikes []float64) {
-	log.WithField("reqID", reqID).Printf("<securityDefinitionOptionParameter>: underlyingContractID: %v", underlyingContractID)
+	log.WithField("reqID", reqID).Printf("<securityDefinitionOptionParameter>: underlyingContractID: %v expirations: %v striker: %v", underlyingContractID, expirations, strikes)
 }
 
 func (w Wrapper) SecurityDefinitionOptionParameterEnd(reqID int64) {

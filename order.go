@@ -236,7 +236,7 @@ type SoftDollarTier struct {
 	DisplayName string
 }
 
-func NewDefaultOrder() *Order {
+func NewOrder() *Order {
 	order := &Order{}
 	order.LimitPrice = UNSETFLOAT
 	order.AuxPrice = UNSETFLOAT
@@ -290,6 +290,25 @@ func NewDefaultOrder() *Order {
 	order.CashQty = UNSETFLOAT
 
 	return order
+}
+
+func NewLimitOrder(action string, lmtPrice float64, quantity float64) *Order {
+	o := NewOrder()
+	o.OrderType = "LMT"
+	o.Action = action
+	o.LimitPrice = lmtPrice
+	o.TotalQuantity = quantity
+
+	return o
+}
+
+func NewMarketOrder(action string, quantity float64) *Order {
+	o := NewOrder()
+	o.OrderType = "LMT"
+	o.Action = action
+	o.TotalQuantity = quantity
+
+	return o
 }
 
 func NewOrderState() *OrderState {

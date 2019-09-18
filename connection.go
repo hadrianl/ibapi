@@ -22,21 +22,21 @@ type IbConnection struct {
 	numMsgRecv   int
 }
 
-func (ibconn *IbConnection) Write(msg []byte) (int, error) {
-	n, err := ibconn.conn.Write(msg)
+func (ibconn *IbConnection) Write(bs []byte) (int, error) {
+	n, err := ibconn.conn.Write(bs)
 
 	ibconn.numBytesSent += n
 	ibconn.numMsgSent++
 
-	log.WithFields(log.Fields{"func": "write", "count": n}).Debug(msg)
+	log.WithFields(log.Fields{"func": "write", "count": n}).Debug(bs)
 	return n, err
 }
 
-func (ibconn *IbConnection) Read(b []byte) (int, error) {
-	n, err := ibconn.conn.Read(b)
+func (ibconn *IbConnection) Read(bs []byte) (int, error) {
+	n, err := ibconn.conn.Read(bs)
 	ibconn.numBytesRecv += n
 	ibconn.numMsgRecv++
-	log.WithFields(log.Fields{"func": "read", "count": n}).Debug(b)
+	log.WithFields(log.Fields{"func": "read", "count": n}).Debug(bs)
 
 	return n, err
 }
@@ -65,16 +65,16 @@ func (ibconn *IbConnection) connect(host string, port int) error {
 	server := ibconn.host + ":" + strconv.Itoa(port)
 	addr, err = net.ResolveTCPAddr("tcp4", server)
 	if err != nil {
-		log.Printf("ResolveTCPAddr Error: %v", err)
+		log.Errorf("ResolveTCPAddr Error: %v", err)
 		return err
 	}
 	ibconn.conn, err = net.DialTCP("tcp4", nil, addr)
 	if err != nil {
-		log.Printf("DialTCP Error: %v", err)
+		log.Errorf("DialTCP Error: %v", err)
 		return err
 	}
 
-	log.Println("TCP Socket Connected to:", ibconn.conn.RemoteAddr())
+	log.Debugf("TCP Socket Connected to: %v", ibconn.conn.RemoteAddr())
 
 	return err
 }

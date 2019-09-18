@@ -11,7 +11,7 @@ import (
 type OrderConditioner interface {
 	CondType() int64
 	setCondType(condType int64)
-	decode(fields [][]byte)
+	decode(*msgBuffer)
 	toFields() []interface{}
 }
 
@@ -27,8 +27,8 @@ type OrderCondition struct {
 	// PercentChange = 7
 }
 
-func (oc OrderCondition) decode(fields [][]byte) {
-	connector := decodeString(fields[0])
+func (oc OrderCondition) decode(msgBuf *msgBuffer) {
+	connector := msgBuf.readString()
 	oc.IsConjunctionConnection = connector == "a"
 }
 
@@ -54,11 +54,11 @@ type ExecutionCondition struct {
 	Symbol   string
 }
 
-func (ec ExecutionCondition) decode(fields [][]byte) { // 4 fields
-	ec.OrderCondition.decode(fields[0:1])
-	ec.SecType = decodeString(fields[1])
-	ec.Exchange = decodeString(fields[2])
-	ec.Symbol = decodeString(fields[3])
+func (ec ExecutionCondition) decode(msgBuf *msgBuffer) { // 4 fields
+	ec.OrderCondition.decode(msgBuf)
+	ec.SecType = msgBuf.readString()
+	ec.Exchange = msgBuf.readString()
+	ec.Symbol = msgBuf.readString()
 }
 
 func (ec ExecutionCondition) toFields() []interface{} {
@@ -70,9 +70,9 @@ type OperatorCondition struct {
 	IsMore bool
 }
 
-func (oc OperatorCondition) decode(fields [][]byte) { // 2 fields
-	oc.OrderCondition.decode(fields[0:1])
-	oc.IsMore = decodeBool(fields[1])
+func (oc OperatorCondition) decode(msgBuf *msgBuffer) { // 2 fields
+	oc.OrderCondition.decode(msgBuf)
+	oc.IsMore = msgBuf.readBool()
 }
 
 func (oc OperatorCondition) toFields() []interface{} {
@@ -84,9 +84,9 @@ type MarginCondition struct {
 	Percent float64
 }
 
-func (mc MarginCondition) decode(fields [][]byte) { // 3 fields
-	mc.OperatorCondition.decode(fields[0:2])
-	mc.Percent = decodeFloat(fields[2])
+func (mc MarginCondition) decode(msgBuf *msgBuffer) { // 3 fields
+	mc.OperatorCondition.decode(msgBuf)
+	mc.Percent = msgBuf.readFloat()
 }
 
 func (mc MarginCondition) toFields() []interface{} {
@@ -99,10 +99,10 @@ type ContractCondition struct {
 	Exchange string
 }
 
-func (cc ContractCondition) decode(fields [][]byte) { // 4 fields
-	cc.OperatorCondition.decode(fields[0:2])
-	cc.ConId = decodeInt(fields[2])
-	cc.Exchange = decodeString(fields[3])
+func (cc ContractCondition) decode(msgBuf *msgBuffer) { // 4 fields
+	cc.OperatorCondition.decode(msgBuf)
+	cc.ConId = msgBuf.readInt()
+	cc.Exchange = msgBuf.readString()
 }
 
 func (cc ContractCondition) toFields() []interface{} {
@@ -114,10 +114,10 @@ type TimeCondition struct {
 	Time string
 }
 
-func (tc TimeCondition) decode(fields [][]byte) { // 3 fields
-	tc.OperatorCondition.decode(fields[0:2])
+func (tc TimeCondition) decode(msgBuf *msgBuffer) { // 3 fields
+	tc.OperatorCondition.decode(msgBuf)
 	// tc.Time = decodeTime(fields[2], "20060102")
-	tc.Time = decodeString(fields[2])
+	tc.Time = msgBuf.readString()
 }
 
 func (tc TimeCondition) toFields() []interface{} {
@@ -130,10 +130,10 @@ type PriceCondition struct {
 	TriggerMethod int64
 }
 
-func (pc PriceCondition) decode(fields [][]byte) { // 6 fields
-	pc.ContractCondition.decode(fields[0:4])
-	pc.Price = decodeFloat(fields[4])
-	pc.TriggerMethod = decodeInt(fields[5])
+func (pc PriceCondition) decode(msgBuf *msgBuffer) { // 6 fields
+	pc.ContractCondition.decode(msgBuf)
+	pc.Price = msgBuf.readFloat()
+	pc.TriggerMethod = msgBuf.readInt()
 }
 
 func (pc PriceCondition) toFields() []interface{} {
@@ -145,9 +145,9 @@ type PercentChangeCondition struct {
 	ChangePercent float64
 }
 
-func (pcc PercentChangeCondition) decode(fields [][]byte) { // 5 fields
-	pcc.ContractCondition.decode(fields[0:4])
-	pcc.ChangePercent = decodeFloat(fields[4])
+func (pcc PercentChangeCondition) decode(msgBuf *msgBuffer) { // 5 fields
+	pcc.ContractCondition.decode(msgBuf)
+	pcc.ChangePercent = msgBuf.readFloat()
 }
 
 func (pcc PercentChangeCondition) toFields() []interface{} {
@@ -159,9 +159,9 @@ type VolumeCondition struct {
 	Volume int64
 }
 
-func (vc VolumeCondition) decode(fields [][]byte) { // 5 fields
-	vc.ContractCondition.decode(fields[0:4])
-	vc.Volume = decodeInt(fields[4])
+func (vc VolumeCondition) decode(msgBuf *msgBuffer) { // 5 fields
+	vc.ContractCondition.decode(msgBuf)
+	vc.Volume = msgBuf.readInt()
 }
 
 func (vc VolumeCondition) toFields() []interface{} {

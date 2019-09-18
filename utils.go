@@ -86,7 +86,6 @@ func scanFields(data []byte, atEOF bool) (advance int, token []byte, err error) 
 
 	msgBytes := make([]byte, totalSize-4, totalSize-4)
 	copy(msgBytes, data[4:totalSize])
-
 	return totalSize, msgBytes, nil
 }
 
@@ -154,51 +153,6 @@ func decodeInt(field []byte) int64 {
 		log.Panicf("errDecodeInt: %v", err)
 	}
 	return i
-}
-
-func decodeFloat(field []byte) float64 {
-	if bytes.Equal(field, []byte{}) || bytes.Equal(field, []byte("None")) {
-		return 0.0
-	}
-
-	f, err := strconv.ParseFloat(string(field), 64)
-	if err != nil {
-		log.Panicf("errDecodeFloat: %v", err)
-	}
-
-	return f
-}
-
-func decodeIntCheckUnset(field []byte) int64 {
-	if bytes.Equal(field, []byte{}) {
-		return math.MaxInt64
-	}
-	i, err := strconv.ParseInt(string(field), 10, 64)
-	if err != nil {
-		log.Panicf("errDecodeInt: %v", err)
-	}
-	return i
-}
-
-func decodeFloatCheckUnset(field []byte) float64 {
-	if bytes.Equal(field, []byte{}) || bytes.Equal(field, []byte("None")) {
-		return math.MaxFloat64
-	}
-
-	f, err := strconv.ParseFloat(string(field), 64)
-	if err != nil {
-		log.Panicf("errDecodeFloat: %v", err)
-	}
-
-	return f
-}
-
-func decodeBool(field []byte) bool {
-
-	if bytes.Equal(field, []byte{'0'}) || bytes.Equal(field, []byte{}) {
-		return false
-	}
-	return true
 }
 
 func decodeString(field []byte) string {
@@ -292,120 +246,122 @@ func InitDefault(o interface{}) {
 
 type msgBuffer struct {
 	*bytes.Buffer
+	bs  []byte
+	err error
 }
 
 func (m *msgBuffer) readInt() int64 {
-	var bs []byte
-	var err error
 	var i int64
-	bs, err = m.ReadBytes(fieldSplit)
-	if err != nil {
-		log.Panicf("errDecodeInt: %v", err)
+	m.bs, m.err = m.ReadBytes(fieldSplit)
+	if m.err != nil {
+		log.Panicf("errDecodeInt: %v", m.err)
 	}
 
-	bs = bs[:len(bs)-1]
-	if bytes.Equal(bs, emptyField) {
+	m.bs = m.bs[:len(m.bs)-1]
+	if bytes.Equal(m.bs, emptyField) {
 		return 0
 	}
 
-	i, err = strconv.ParseInt(string(bs), 10, 64)
-	if err != nil {
-		log.Panicf("errDecodeInt: %v", err)
+	i, m.err = strconv.ParseInt(string(m.bs), 10, 64)
+	if m.err != nil {
+		log.Panicf("errDecodeInt: %v", m.err)
 	}
 
 	return i
 }
 
 func (m *msgBuffer) readIntCheckUnset() int64 {
-	var bs []byte
-	var err error
 	var i int64
-	bs, err = m.ReadBytes(fieldSplit)
-	if err != nil {
-		log.Panicf("errDecodeInt: %v", err)
+	m.bs, m.err = m.ReadBytes(fieldSplit)
+	if m.err != nil {
+		log.Panicf("errDecodeInt: %v", m.err)
 	}
 
-	bs = bs[:len(bs)-1]
-	if bytes.Equal(bs, emptyField) {
+	m.bs = m.bs[:len(m.bs)-1]
+	if bytes.Equal(m.bs, emptyField) {
 		return UNSETINT
 	}
 
-	i, err = strconv.ParseInt(string(bs), 10, 64)
-	if err != nil {
-		log.Panicf("errDecodeInt: %v", err)
+	i, m.err = strconv.ParseInt(string(m.bs), 10, 64)
+	if m.err != nil {
+		log.Panicf("errDecodeInt: %v", m.err)
 	}
 
 	return i
 }
 
 func (m *msgBuffer) readFloat() float64 {
-	var bs []byte
-	var err error
 	var f float64
-	bs, err = m.ReadBytes(fieldSplit)
-	if err != nil {
-		log.Panicf("errDecodeFloat: %v", err)
+	m.bs, m.err = m.ReadBytes(fieldSplit)
+	if m.err != nil {
+		log.Panicf("errDecodeFloat: %v", m.err)
 	}
 
-	bs = bs[:len(bs)-1]
-	if bytes.Equal(bs, emptyField) {
+	m.bs = m.bs[:len(m.bs)-1]
+	if bytes.Equal(m.bs, emptyField) {
 		return 0.0
 	}
 
-	f, err = strconv.ParseFloat(string(bs), 64)
-	if err != nil {
-		log.Panicf("errDecodeFloat: %v", err)
+	f, m.err = strconv.ParseFloat(string(m.bs), 64)
+	if m.err != nil {
+		log.Panicf("errDecodeFloat: %v", m.err)
 	}
 
 	return f
 }
 
 func (m *msgBuffer) readFloatCheckUnset() float64 {
-	var bs []byte
-	var err error
 	var f float64
-	bs, err = m.ReadBytes(fieldSplit)
-	if err != nil {
-		log.Panicf("errDecodeFloat: %v", err)
+	m.bs, m.err = m.ReadBytes(fieldSplit)
+	if m.err != nil {
+		log.Panicf("errDecodeFloat: %v", m.err)
 	}
 
-	bs = bs[:len(bs)-1]
-	if bytes.Equal(bs, emptyField) {
+	m.bs = m.bs[:len(m.bs)-1]
+	if bytes.Equal(m.bs, emptyField) {
 		return UNSETFLOAT
 	}
 
-	f, err = strconv.ParseFloat(string(bs), 64)
-	if err != nil {
-		log.Panicf("errDecodeFloat: %v", err)
+	f, m.err = strconv.ParseFloat(string(m.bs), 64)
+	if m.err != nil {
+		log.Panicf("errDecodeFloat: %v", m.err)
 	}
 
 	return f
 }
 
 func (m *msgBuffer) readBool() bool {
-	var bs []byte
-	var err error
-	bs, err = m.ReadBytes(fieldSplit)
-	if err != nil {
-		log.Panicf("errDecodeBool: %v", err)
+	m.bs, m.err = m.ReadBytes(fieldSplit)
+	if m.err != nil {
+		log.Panicf("errDecodeBool: %v", m.err)
 	}
 
-	bs = bs[:len(bs)-1]
+	m.bs = m.bs[:len(m.bs)-1]
 
-	if bytes.Equal(bs, []byte{'0'}) || bytes.Equal(bs, []byte{}) {
+	if bytes.Equal(m.bs, []byte{'0'}) || bytes.Equal(m.bs, emptyField) {
 		return false
 	}
 	return true
 }
 
 func (m *msgBuffer) readString() string {
-	var bs []byte
-	var err error
-	bs, err = m.ReadBytes(fieldSplit)
-	if err != nil {
-		log.Panicf("errDecodeString: %v", err)
+	m.bs, m.err = m.ReadBytes(fieldSplit)
+	if m.err != nil {
+		log.Panicf("errDecodeString: %v", m.err)
 	}
 
-	bs = bs[:len(bs)-1]
-	return string(bs)
+	return string(m.bs[:len(m.bs)-1])
+}
+
+func NewMsgBuffer(bs []byte) *msgBuffer {
+	return &msgBuffer{
+		bytes.NewBuffer(bs),
+		nil,
+		nil}
+}
+
+func (m *msgBuffer) Reset() {
+	m.Buffer.Reset()
+	m.bs = m.bs[:0]
+	m.err = nil
 }

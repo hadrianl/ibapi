@@ -32,15 +32,15 @@ func (d *ibDecoder) interpret(msgBuf *msgBuffer) {
 	// if decode error ocours,handle the error
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Printf("!!!!!!errDeocde!!!!!!->%v", err) //TODO: handle error
+			log.Errorf("!!!!!!errDeocde!!!!!!->%v", err) //TODO: handle error
 		}
 	}()
-
+	log.Debugf("interpret -> msgBuffer: %v", msgBuf.Bytes())
 	MsgID := msgBuf.readInt()
 	if processer, ok := d.msgID2process[IN(MsgID)]; ok {
 		processer(msgBuf)
 	} else {
-		log.Printf("MsgId: %v -> MsgBytes: %v", MsgID, msgBuf.Bytes())
+		log.Infof("MsgId: %v NOT FOUND!!!-> MsgBytes: %v", MsgID, msgBuf.Bytes())
 	}
 
 }
@@ -447,7 +447,6 @@ func (d *ibDecoder) wrapAccountUpdateMultiEnd(msgBuf *msgBuffer) {
 }
 
 func (d *ibDecoder) wrapSecurityDefinitionOptionParameterEndMsg(msgBuf *msgBuffer) {
-	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 
 	d.wrapper.SecurityDefinitionOptionParameterEnd(reqID)
@@ -1394,6 +1393,7 @@ func (d *ibDecoder) processPositionMultiMsg(msgBuf *msgBuffer) {
 	c.SecurityType = msgBuf.readString()
 	c.Expiry = msgBuf.readString()
 	c.Strike = msgBuf.readFloat()
+	c.Right = msgBuf.readString()
 	c.Multiplier = msgBuf.readString()
 	c.Exchange = msgBuf.readString()
 	c.Currency = msgBuf.readString()

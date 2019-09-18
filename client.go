@@ -3,8 +3,8 @@ package ibapi
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
-	"errors"
 	"net"
 	"strconv"
 	"strings"
@@ -43,6 +43,7 @@ type IbClient struct {
 	connTime         time.Time
 	extraAuth        bool
 	wg               sync.WaitGroup
+	ctx              context.Context
 }
 
 // NewIbClient create IbClient with wrapper
@@ -79,8 +80,13 @@ func (ic *IbClient) GetReqID() int64 {
 // Set the Wrapper to IbClient
 func (ic *IbClient) SetWrapper(wrapper IbWrapper) {
 	ic.wrapper = wrapper
-	log.Debug("setWrapper:", wrapper)
+	log.Infof("Set Wrapper: %v", wrapper)
 	ic.decoder = &ibDecoder{wrapper: ic.wrapper}
+}
+
+// Set the Connection Context to IbClient
+func (ic *IbClient) SetContext(ctx context.Context) {
+	ic.ctx = ctx
 }
 
 // Connect try to connect the TWS or IB GateWay, after this, handshake should be call to get the connection done
@@ -89,11 +95,12 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 	ic.host = host
 	ic.port = port
 	ic.clientID = clientID
+	ic.setConnState(CONNECTING)
 	if err := ic.conn.connect(host, port); err != nil {
-		return err
+		ic.wrapper.Error(NO_VALID_ID, CONNECT_FAIL.code, CONNECT_FAIL.msg)
+		return CONNECT_FAIL
 	}
 
-	ic.setConnState(CONNECTING)
 	return nil
 	// 连接后开始
 }
@@ -129,7 +136,7 @@ func (ic *IbClient) startAPI() error {
 		startAPI = makeMsgBytes(int64(mSTART_API), int64(v), ic.clientID)
 	}
 
-	log.Debug("Start API:", startAPI)
+	log.Info("Start API:", startAPI)
 	if _, err := ic.writer.Write(startAPI); err != nil {
 		return err
 	}
@@ -141,8 +148,10 @@ func (ic *IbClient) startAPI() error {
 
 // HandShake with the TWS or GateWay to ensure the version
 func (ic *IbClient) HandShake() error {
-	log.Debug("Try to handShake with TWS or GateWay...")
+	log.Info("Try to handShake with TWS or GateWay...")
 	var msg bytes.Buffer
+	var msgBytes []byte
+	var err error
 	head := []byte("API\x00")
 	minVer := []byte(strconv.FormatInt(int64(MIN_CLIENT_VER), 10))
 	maxVer := []byte(strconv.FormatInt(int64(MAX_CLIENT_VER), 10))
@@ -153,30 +162,30 @@ func (ic *IbClient) HandShake() error {
 	msg.Write(head)
 	msg.Write(sizeofCV)
 	msg.Write(clientVersion)
-	log.Debug("HandShake Init...")
-	if _, err := ic.writer.Write(msg.Bytes()); err != nil {
+	log.Info("HandShake Init...")
+	if _, err = ic.writer.Write(msg.Bytes()); err != nil {
 		return err
 	}
 
-	if err := ic.writer.Flush(); err != nil {
+	if err = ic.writer.Flush(); err != nil {
 		return err
 	}
 
-	log.Debug("Recv ServerInitInfo...")
-	if msgBytes, err := readMsgBytes(ic.reader); err != nil {
+	log.Info("Recv ServerInitInfo...")
+	if msgBytes, err = readMsgBytes(ic.reader); err != nil {
 		return err
-	} else {
-		serverInfo := splitMsgBytes(msgBytes)
-		v, _ := strconv.Atoi(string(serverInfo[0]))
-		ic.serverVersion = Version(v)
-		ic.connTime = bytesToTime(serverInfo[1])
-		ic.decoder.setVersion(ic.serverVersion) // Init Decoder
-		ic.decoder.setmsgID2process()
-		log.Info("ServerVersion:", ic.serverVersion)
-		log.Info("ConnectionTime:", ic.connTime)
 	}
 
-	if err := ic.startAPI(); err != nil {
+	serverInfo := splitMsgBytes(msgBytes)
+	v, _ := strconv.Atoi(string(serverInfo[0]))
+	ic.serverVersion = Version(v)
+	ic.connTime = bytesToTime(serverInfo[1])
+	ic.decoder.setVersion(ic.serverVersion) // Init Decoder
+	ic.decoder.setmsgID2process()
+	log.Info("ServerVersion:", ic.serverVersion)
+	log.Info("ConnectionTime:", ic.connTime)
+
+	if err = ic.startAPI(); err != nil {
 		return err
 	}
 
@@ -190,11 +199,11 @@ comfirmReadyLoop:
 			f := splitMsgBytes(m)
 			MsgID, _ := strconv.ParseInt(string(f[0]), 10, 64)
 
-			msgBuf := &msgBuffer{
-				bytes.NewBuffer(m)}
+			msgBuf := NewMsgBuffer(m)
+			// msgBuf := &msgBuffer{
+			// 	bytes.NewBuffer(m)}
 
 			ic.decoder.interpret(msgBuf)
-			log.Debug(MsgID)
 			for i, ID := range comfirmMsgIDs {
 				if MsgID == int64(ID) {
 					comfirmMsgIDs = append(comfirmMsgIDs[:i], comfirmMsgIDs[i+1:]...)
@@ -205,7 +214,13 @@ comfirmReadyLoop:
 				ic.wrapper.ConnectAck()
 				break comfirmReadyLoop
 			}
-		case <-time.After(10 * time.Second):
+		case <-time.After(60 * time.Second):
+			ic.setConnState(DISCONNECTED)
+			ic.wrapper.Error(NO_VALID_ID, ALREADY_CONNECTED.code, ALREADY_CONNECTED.msg)
+			return ALREADY_CONNECTED
+		case <-ic.ctx.Done():
+			ic.setConnState(DISCONNECTED)
+			ic.wrapper.Error(NO_VALID_ID, ALREADY_CONNECTED.code, ALREADY_CONNECTED.msg)
 			return ALREADY_CONNECTED
 		}
 	}
@@ -214,7 +229,7 @@ comfirmReadyLoop:
 }
 
 func (ic *IbClient) reset() {
-	log.Debug("reset IbClient.")
+	log.Info("reset IbClient.")
 	ic.reqIDSeq = 0
 	ic.conn = &IbConnection{}
 	ic.conn.reset()
@@ -225,6 +240,10 @@ func (ic *IbClient) reset() {
 	ic.msgChan = make(chan []byte, 100)
 	ic.terminatedSignal = make(chan int, 3)
 	ic.wg = sync.WaitGroup{}
+
+	if ic.ctx == nil {
+		ic.ctx = context.TODO()
+	}
 
 }
 
@@ -436,7 +455,7 @@ func (ic *IbClient) ReqTickByTickData(reqID int64, contract *Contract, tickType 
 		fields = append(fields, numberOfTicks, ignoreSize)
 	}
 
-	msg := makeMsgBytes(fields)
+	msg := makeMsgBytes(fields...)
 
 	ic.reqChan <- msg
 }
@@ -1197,9 +1216,18 @@ func (ic *IbClient) ReqGlobalCancel() {
 	ic.reqChan <- msg
 }
 
-func (ic *IbClient) ReqIDs(numIDs int) {
+/*
+Call this function to request from TWS the next valid ID that
+can be used when placing an order.  After calling this function, the
+nextValidId() event will be triggered, and the id returned is that next
+valid ID. That ID will reflect any autobinding that has occurred (which
+generates new IDs and increments the next valid ID therein).
+
+numIds:int - deprecated
+*/
+func (ic *IbClient) ReqIDs() {
 	v := 1
-	msg := makeMsgBytes(mREQ_IDS, v, numIDs)
+	msg := makeMsgBytes(mREQ_IDS, v, 0)
 
 	ic.reqChan <- msg
 }
@@ -2635,13 +2663,14 @@ func (ic *IbClient) goDecode() {
 	defer ic.wg.Done()
 
 	ic.wg.Add(1)
+	msgBuf := NewMsgBuffer(nil)
 
 decodeLoop:
 	for {
 		select {
 		case m := <-ic.msgChan:
-			msgBuf := &msgBuffer{
-				bytes.NewBuffer(m)}
+			msgBuf.Reset()
+			msgBuf.Write(m)
 			ic.decoder.interpret(msgBuf)
 		case e := <-ic.errChan:
 			log.Error(e)
@@ -2656,10 +2685,11 @@ decodeLoop:
 
 // Run make the event loop run, all make sense after run!
 func (ic *IbClient) Run() error {
-	if ic.conn.state == DISCONNECTED {
-		return errors.New("ibClient is DISCONNECTED")
+	if !ic.IsConnected() {
+		ic.wrapper.Error(NO_VALID_ID, NOT_CONNECTED.code, NOT_CONNECTED.msg)
+		return NOT_CONNECTED
 	}
-	log.Println("RUN Client")
+	log.Info("RUN Client")
 
 	go ic.goRequest()
 	go ic.goDecode()

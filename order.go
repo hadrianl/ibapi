@@ -186,7 +186,7 @@ type Order struct {
 
 	AutoCancelDate       string
 	FilledQuantity       float64
-	RefFuturesConId      int64
+	RefFuturesConID      int64
 	AutoCancelParent     bool
 	Shareholder          string
 	ImbalanceOnly        bool

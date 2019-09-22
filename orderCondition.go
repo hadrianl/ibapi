@@ -95,18 +95,18 @@ func (mc MarginCondition) toFields() []interface{} {
 
 type ContractCondition struct {
 	OperatorCondition
-	ConId    int64
+	ConID    int64
 	Exchange string
 }
 
 func (cc ContractCondition) decode(msgBuf *msgBuffer) { // 4 fields
 	cc.OperatorCondition.decode(msgBuf)
-	cc.ConId = msgBuf.readInt()
+	cc.ConID = msgBuf.readInt()
 	cc.Exchange = msgBuf.readString()
 }
 
 func (cc ContractCondition) toFields() []interface{} {
-	return append(cc.OperatorCondition.toFields(), cc.ConId, cc.Exchange)
+	return append(cc.OperatorCondition.toFields(), cc.ConID, cc.Exchange)
 }
 
 type TimeCondition struct {

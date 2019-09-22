@@ -2077,7 +2077,7 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *msgBuffer) {
 
 	o.AutoCancelDate = msgBuf.readString()
 	o.FilledQuantity = msgBuf.readFloat()
-	o.RefFuturesConId = msgBuf.readInt()
+	o.RefFuturesConID = msgBuf.readInt()
 	o.AutoCancelParent = msgBuf.readBool()
 	o.Shareholder = msgBuf.readString()
 	o.ImbalanceOnly = msgBuf.readBool()

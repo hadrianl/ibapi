@@ -1,5 +1,5 @@
 # Interactive Brokers API - GoLang Version
-Interactive Brokers API 9.76.1
+Interactive Brokers API 9.79
 pure golang, Unofficial version, smilar to the official python version
 
 

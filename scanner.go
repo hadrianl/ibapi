@@ -1,5 +1,7 @@
 package ibapi
 
+import "fmt"
+
 type ScanData struct {
 	ContractDetails ContractDetails
 	Rank            int64
@@ -7,6 +9,16 @@ type ScanData struct {
 	Benchmark       string
 	Projection      string
 	Legs            string
+}
+
+func (s ScanData) String() string {
+	return fmt.Sprintf("Rank: %d, ContractDetails: %v, Distance: %s, Benchmark: %s, Projection: %s, Legs String: %s",
+		s.Rank,
+		s.ContractDetails,
+		s.Distance,
+		s.Benchmark,
+		s.Projection,
+		s.Legs)
 }
 
 type ScannerSubscription struct {
@@ -31,6 +43,13 @@ type ScannerSubscription struct {
 	AverageOptionVolumeAbove int64 `default:"UNSETINT"`
 	ScannerSettingPairs      string
 	StockTypeFilter          string
+}
+
+func (s ScannerSubscription) String() string {
+	return fmt.Sprintf("Instrument: %s, LocationCode: %s, ScanCode: %s",
+		s.Instrument,
+		s.LocationCode,
+		s.ScanCode)
 }
 
 func NewScanData(contractDetails ContractDetails, rank int64, distance string, benchmark string, projection string, legsStr string) *ScanData {

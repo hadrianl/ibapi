@@ -1,5 +1,9 @@
 package ibapi
 
+import (
+	"fmt"
+)
+
 const (
 	CUSTOMER int64 = iota
 	FIRM
@@ -185,7 +189,7 @@ type Order struct {
 	DiscretionaryUpToLimitPrice bool
 
 	AutoCancelDate       string
-	FilledQuantity       float64
+	FilledQuantity       float64 `default:"UNSETFLOAT"`
 	RefFuturesConID      int64
 	AutoCancelParent     bool
 	Shareholder          string
@@ -195,18 +199,28 @@ type Order struct {
 	UsePriceMgmtAlgo     bool
 
 	SoftDollarTier SoftDollarTier
+}
 
-	/*
-			    autoCancelDate='',
-		        filledQuantity=UNSET_DOUBLE,
-		        refFuturesConId=0,
-		        autoCancelParent=False,
-		        shareholder='',
-		        imbalanceOnly=False,
-		        routeMarketableToBbo=False,
-		        parentPermId=0,
-		        usePriceMgmtAlgo=False
-	*/
+func (o Order) String() string {
+	s := fmt.Sprintf("%d, %d, %d:  %s %s %.2f@%f %s ",
+		o.OrderID,
+		o.ClientID,
+		o.PermID,
+		o.OrderType,
+		o.Action,
+		o.TotalQuantity,
+		o.LimitPrice,
+		o.TIF)
+
+	for i, leg := range o.OrderComboLegs {
+		s += fmt.Sprintf(" CMB<%d>-%v)", i, leg)
+	}
+
+	for i, cond := range o.Conditions {
+		s += fmt.Sprintf(" COND<%d>-%v)", i, cond)
+	}
+
+	return s
 }
 
 // OrderState is the state of Order
@@ -234,6 +248,13 @@ type SoftDollarTier struct {
 	Name        string
 	Value       string
 	DisplayName string
+}
+
+func (s SoftDollarTier) String() string {
+	return fmt.Sprintf("Name: %s, Value: %s, DisplayName: %s",
+		s.Name,
+		s.Value,
+		s.DisplayName)
 }
 
 func NewOrder() *Order {

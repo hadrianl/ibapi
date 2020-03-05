@@ -1,5 +1,7 @@
 package ibapi
 
+import "fmt"
+
 //Contract is the base struct about the information of specified symbol(identify by ContractID)
 type Contract struct {
 	ContractID      int64
@@ -26,15 +28,43 @@ type Contract struct {
 	DeltaNeutralContract *DeltaNeutralContract
 }
 
-// func (c *Contract) String() string {
-// 	s := string(c.ContractId)
-// 	return s
-// }
+func (c Contract) String() string {
+	basicStr := fmt.Sprintf("CondID: %d , Symbol: %s, SecurityType: %s, Exchange: %s, Currency: %s, ",
+		c.ContractID,
+		c.Symbol,
+		c.SecurityType,
+		c.Exchange,
+		c.Currency)
+
+	switch c.SecurityType {
+	case "FUT":
+		basicStr += fmt.Sprintf("Expiry: %s, Multiplier: %s, SecurityID: %s, SecurityIDType:%s", c.Expiry, c.Multiplier, c.SecurityID, c.SecurityIDType)
+	case "OPT":
+		basicStr += fmt.Sprintf("Expiry: %s, Strike: %f, Right: %s, SecurityID: %s, SecurityIDType:%s", c.Expiry, c.Strike, c.Right, c.SecurityID, c.SecurityIDType)
+	}
+
+	for i, leg := range c.ComboLegs {
+		basicStr += fmt.Sprintf(";Leg<%d>-%s", i, leg)
+	}
+
+	if c.DeltaNeutralContract != nil {
+		basicStr += fmt.Sprintf(";DeltaNeutralContract-%s", c.DeltaNeutralContract)
+	}
+
+	return basicStr
+}
 
 type DeltaNeutralContract struct {
 	ContractID int64
 	Delta      float64
 	Price      float64
+}
+
+func (c DeltaNeutralContract) String() string {
+	return fmt.Sprintf("CondID: %d , Delta: %f, Price: %f",
+		c.ContractID,
+		c.Delta,
+		c.Price)
 }
 
 // ContractDetails contain a Contract and other details about this contract, can be request by ReqContractDetails
@@ -65,6 +95,7 @@ type ContractDetails struct {
 	SecurityIDList     []TagValue
 	RealExpirationDate string
 	LastTradeTime      string
+	StockType          string
 
 	// BOND values
 	Cusip             string
@@ -82,6 +113,10 @@ type ContractDetails struct {
 	NextOptionType    string
 	NextOptionPartial bool
 	Notes             string
+}
+
+func (c ContractDetails) String() string {
+	return fmt.Sprintf("Contract: %s, MarketName: %s, UnderContractID: %d, TradingHours: %s", c.Contract, c.MarketName, c.UnderContractID, c.TradingHours)
 }
 
 type ContractDescription struct {

@@ -31,10 +31,10 @@ func TestClient(t *testing.T) {
 	// ic.ReqAccountUpdates(true, "")
 	// ic.ReqExecutions(ic.GetReqID(), ExecutionFilter{})
 
-	// hsi1909 := Contract{ContractID: 351872027, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
+	hsi2003 := Contract{ContractID: 376399002, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
 	// ic.ReqHistoricalData(ic.GetReqID(), &hsi1909, "", "4800 S", "1 min", "TRADES", false, 1, true, nil)
 	// ic.ReqMktDepth(ic.GetReqID(), &hsi1909, 5, true, nil)
-	// ic.ReqContractDetails(ic.GetReqID(), &hsi1909)
+	ic.ReqContractDetails(ic.GetReqID(), &hsi2003)
 	// ic.ReqAllOpenOrders()
 	// ic.ReqMktData(ic.GetReqID(), &hsi1909, "", false, false, nil)
 	// ic.ReqPositions()

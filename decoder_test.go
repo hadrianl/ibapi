@@ -1,6 +1,7 @@
 package ibapi
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -11,6 +12,11 @@ var decoder = &ibDecoder{
 func init() {
 	decoder.setVersion(151)
 	decoder.setmsgID2process()
+}
+
+func TestDecodeLongName(t *testing.T) {
+	longName := "\\xef"
+	fmt.Println(longName)
 }
 
 func BenchmarkDecode(b *testing.B) {

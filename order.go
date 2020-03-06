@@ -202,7 +202,7 @@ type Order struct {
 }
 
 func (o Order) String() string {
-	s := fmt.Sprintf("%d, %d, %d:  %s %s %.2f@%f %s ",
+	s := fmt.Sprintf("Order<OrderID: %d, ClientID: %d, PermID: %d> -- <%s %s %.2f@%f %s> --",
 		o.OrderID,
 		o.ClientID,
 		o.PermID,
@@ -213,11 +213,11 @@ func (o Order) String() string {
 		o.TIF)
 
 	for i, leg := range o.OrderComboLegs {
-		s += fmt.Sprintf(" CMB<%d>-%v)", i, leg)
+		s += fmt.Sprintf(" CMB<%d>-%s", i, leg)
 	}
 
 	for i, cond := range o.Conditions {
-		s += fmt.Sprintf(" COND<%d>-%v)", i, cond)
+		s += fmt.Sprintf(" COND<%d>-%s", i, cond)
 	}
 
 	return s
@@ -251,7 +251,7 @@ type SoftDollarTier struct {
 }
 
 func (s SoftDollarTier) String() string {
-	return fmt.Sprintf("Name: %s, Value: %s, DisplayName: %s",
+	return fmt.Sprintf("SoftDollarTier<Name: %s, Value: %s, DisplayName: %s>",
 		s.Name,
 		s.Value,
 		s.DisplayName)

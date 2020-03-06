@@ -15,7 +15,7 @@ type TickAttrib struct {
 }
 
 func (t TickAttrib) String() string {
-	return fmt.Sprintf("CanAutoExecute: %t, PastLimit: %t, PreOpen: %t",
+	return fmt.Sprintf("TickAttrib<CanAutoExecute: %t, PastLimit: %t, PreOpen: %t>",
 		t.CanAutoExecute,
 		t.PastLimit,
 		t.PreOpen)
@@ -30,11 +30,15 @@ type TagValue struct {
 }
 
 func (tv TagValue) String() string {
-	return fmt.Sprintf("%s=%s;", tv.Tag, tv.Value)
+	return fmt.Sprintf("TagValue<%s=%s>", tv.Tag, tv.Value)
 }
 
 type OrderComboLeg struct {
 	Price float64 `default:"UNSETFLOAT"`
+}
+
+func (o OrderComboLeg) String() string {
+	return fmt.Sprintf("OrderComboLeg<Price:%f>;", o.Price)
 }
 
 // ------------ComboLeg--------------------
@@ -64,7 +68,7 @@ type ComboLeg struct {
 }
 
 func (c ComboLeg) String() string {
-	return fmt.Sprintf("%d, %d, %s, %s, %d, %d, %s, %d",
+	return fmt.Sprintf("ComboLeg<%d, %d, %s, %s, %d, %d, %s, %d>",
 		c.ContractID,
 		c.Ratio,
 		c.Action,
@@ -99,7 +103,7 @@ type BarData struct {
 }
 
 func (b BarData) String() string {
-	return fmt.Sprintf("Date: %s, Open: %f, High: %f, Low: %f, Close: %f, Volume: %f, Average: %f, BarCount: %d",
+	return fmt.Sprintf("BarData<Date: %s, Open: %f, High: %f, Low: %f, Close: %f, Volume: %f, Average: %f, BarCount: %d>",
 		b.Date,
 		b.Open,
 		b.High,
@@ -123,7 +127,7 @@ type RealTimeBar struct {
 }
 
 func (rb RealTimeBar) String() string {
-	return fmt.Sprintf("Time: %d, Open: %f, High: %f, Low: %f, Close: %f, Volume: %d, Wap: %f, Count: %d",
+	return fmt.Sprintf("RealTimeBar<Time: %d, Open: %f, High: %f, Low: %f, Close: %f, Volume: %d, Wap: %f, Count: %d>",
 		rb.Time,
 		rb.Open,
 		rb.High,
@@ -144,7 +148,7 @@ type CommissionReport struct {
 }
 
 func (cr CommissionReport) String() string {
-	return fmt.Sprintf("ExecId: %v, Commission: %v, Currency: %v, RealizedPnL: %v, Yield: %v, YieldRedemptionDate: %v",
+	return fmt.Sprintf("CommissionReport<ExecId: %v, Commission: %v, Currency: %v, RealizedPnL: %v, Yield: %v, YieldRedemptionDate: %v>",
 		cr.ExecId,
 		cr.Commission,
 		cr.Currency,
@@ -159,7 +163,7 @@ type FamilyCode struct {
 }
 
 func (f FamilyCode) String() string {
-	return fmt.Sprintf("AccountId: %s, FamilyCodeStr: %s",
+	return fmt.Sprintf("FamilyCode<AccountId: %s, FamilyCodeStr: %s>",
 		f.AccountID,
 		f.FamilyCode)
 }
@@ -171,7 +175,7 @@ type SmartComponent struct {
 }
 
 func (s SmartComponent) String() string {
-	return fmt.Sprintf("BitNumber: %d, Exchange: %s, ExchangeLetter: %s",
+	return fmt.Sprintf("SmartComponent<BitNumber: %d, Exchange: %s, ExchangeLetter: %s>",
 		s.BitNumber,
 		s.Exchange,
 		s.ExchangeLetter)
@@ -191,7 +195,7 @@ func (d DepthMktDataDescription) String() string {
 		aggGroup = string(d.AggGroup)
 	}
 
-	return fmt.Sprintf("Exchange: %s, SecType: %s, ListingExchange: %s, ServiceDataType: %s, AggGroup: %s ",
+	return fmt.Sprintf("DepthMktDataDescription<Exchange: %s, SecType: %s, ListingExchange: %s, ServiceDataType: %s, AggGroup: %s>",
 		d.Exchange,
 		d.SecurityType,
 		d.ListingExchange,
@@ -205,7 +209,7 @@ type NewsProvider struct {
 }
 
 func (np NewsProvider) String() string {
-	return fmt.Sprintf("Code: %s, Name: %s",
+	return fmt.Sprintf("NewsProvider<Code: %s, Name: %s>",
 		np.Code,
 		np.Name)
 }
@@ -216,7 +220,7 @@ type HistogramData struct {
 }
 
 func (hgd HistogramData) String() string {
-	return fmt.Sprintf("Price: %f, Count: %d",
+	return fmt.Sprintf("HistogramData<Price: %f, Count: %d>",
 		hgd.Price,
 		hgd.Count)
 }
@@ -227,7 +231,7 @@ type PriceIncrement struct {
 }
 
 func (p PriceIncrement) String() string {
-	return fmt.Sprintf("LowEdge: %f, Increment: %f",
+	return fmt.Sprintf("PriceIncrement<LowEdge: %f, Increment: %f>",
 		p.LowEdge,
 		p.Increment)
 }
@@ -239,7 +243,7 @@ type HistoricalTick struct {
 }
 
 func (h HistoricalTick) String() string {
-	return fmt.Sprintf("Time: %d, Price: %f, Size: %d",
+	return fmt.Sprintf("Tick<Time: %d, Price: %f, Size: %d>",
 		h.Time,
 		h.Price,
 		h.Size)
@@ -255,7 +259,7 @@ type HistoricalTickBidAsk struct {
 }
 
 func (h HistoricalTickBidAsk) String() string {
-	return fmt.Sprintf("Time: %d, TickAttriBidAsk: %s, PriceBid: %f, PriceAsk: %f, SizeBid: %d, SizeAsk: %d",
+	return fmt.Sprintf("TickBidAsk<Time: %d, TickAttriBidAsk: %s, PriceBid: %f, PriceAsk: %f, SizeBid: %d, SizeAsk: %d>",
 		h.Time,
 		h.TickAttirbBidAsk,
 		h.PriceBid,
@@ -270,7 +274,7 @@ type TickAttribBidAsk struct {
 }
 
 func (t TickAttribBidAsk) String() string {
-	return fmt.Sprintf("BidPastLow: %t, AskPastHigh: %t",
+	return fmt.Sprintf("TickAttribBidAsk<BidPastLow: %t, AskPastHigh: %t>",
 		t.BidPastLow,
 		t.AskPastHigh)
 }
@@ -285,7 +289,7 @@ type HistoricalTickLast struct {
 }
 
 func (h HistoricalTickLast) String() string {
-	return fmt.Sprintf("Time: %d, TickAttribLast: %s, Price: %f, Size: %d, Exchange: %s, SpecialConditions: %s",
+	return fmt.Sprintf("TickLast<Time: %d, TickAttribLast: %s, Price: %f, Size: %d, Exchange: %s, SpecialConditions: %s>",
 		h.Time,
 		h.TickAttribLast,
 		h.Price,
@@ -300,7 +304,7 @@ type TickAttribLast struct {
 }
 
 func (t TickAttribLast) String() string {
-	return fmt.Sprintf("PastLimit: %t, Unreported: %t",
+	return fmt.Sprintf("TickAttribLast<PastLimit: %t, Unreported: %t>",
 		t.PastLimit,
 		t.Unreported)
 }

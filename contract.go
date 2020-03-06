@@ -29,7 +29,7 @@ type Contract struct {
 }
 
 func (c Contract) String() string {
-	basicStr := fmt.Sprintf("CondID: %d , Symbol: %s, SecurityType: %s, Exchange: %s, Currency: %s, ",
+	basicStr := fmt.Sprintf("Contract<CondID: %d, Symbol: %s, SecurityType: %s, Exchange: %s, Currency: %s",
 		c.ContractID,
 		c.Symbol,
 		c.SecurityType,
@@ -38,17 +38,19 @@ func (c Contract) String() string {
 
 	switch c.SecurityType {
 	case "FUT":
-		basicStr += fmt.Sprintf("Expiry: %s, Multiplier: %s, SecurityID: %s, SecurityIDType:%s", c.Expiry, c.Multiplier, c.SecurityID, c.SecurityIDType)
+		basicStr += fmt.Sprintf(", Expiry: %s, Multiplier: %s, SecurityID: %s, SecurityIDType: %s>", c.Expiry, c.Multiplier, c.SecurityID, c.SecurityIDType)
 	case "OPT":
-		basicStr += fmt.Sprintf("Expiry: %s, Strike: %f, Right: %s, SecurityID: %s, SecurityIDType:%s", c.Expiry, c.Strike, c.Right, c.SecurityID, c.SecurityIDType)
+		basicStr += fmt.Sprintf(", Expiry: %s, Strike: %f, Right: %s, SecurityID: %s, SecurityIDType: %s>", c.Expiry, c.Strike, c.Right, c.SecurityID, c.SecurityIDType)
+	default:
+		basicStr += fmt.Sprint(">")
 	}
 
 	for i, leg := range c.ComboLegs {
-		basicStr += fmt.Sprintf(";Leg<%d>-%s", i, leg)
+		basicStr += fmt.Sprintf("-Leg<%d>: %s", i, leg)
 	}
 
 	if c.DeltaNeutralContract != nil {
-		basicStr += fmt.Sprintf(";DeltaNeutralContract-%s", c.DeltaNeutralContract)
+		basicStr += fmt.Sprintf("-%s", c.DeltaNeutralContract)
 	}
 
 	return basicStr
@@ -61,7 +63,7 @@ type DeltaNeutralContract struct {
 }
 
 func (c DeltaNeutralContract) String() string {
-	return fmt.Sprintf("CondID: %d , Delta: %f, Price: %f",
+	return fmt.Sprintf("DeltaNeutralContract<CondID: %d , Delta: %f, Price: %f>",
 		c.ContractID,
 		c.Delta,
 		c.Price)
@@ -116,7 +118,7 @@ type ContractDetails struct {
 }
 
 func (c ContractDetails) String() string {
-	return fmt.Sprintf("Contract: %s, MarketName: %s, UnderContractID: %d, TradingHours: %s", c.Contract, c.MarketName, c.UnderContractID, c.TradingHours)
+	return fmt.Sprintf("ContractDetails<Contract: %s, MarketName: %s, UnderContractID: %d, LongName: %s>", c.Contract, c.MarketName, c.UnderContractID, c.LongName)
 }
 
 type ContractDescription struct {

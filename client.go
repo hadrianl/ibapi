@@ -31,7 +31,7 @@ type IbClient struct {
 	writer           *bufio.Writer
 	wrapper          IbWrapper
 	decoder          *ibDecoder
-	connectOption    []byte
+	connectOptions   string
 	reqIDSeq         int64
 	reqChan          chan []byte
 	errChan          chan error
@@ -68,7 +68,7 @@ func (ic *IbClient) ConnState() int {
 func (ic *IbClient) setConnState(connState int) {
 	OldConnState := ic.conn.state
 	ic.conn.state = connState
-	log.Infof("connState: %v -> %v", OldConnState, connState)
+	log.Infof("ConnState: %v -> %v", OldConnState, connState)
 }
 
 // GetReqID before request data or place order
@@ -87,6 +87,11 @@ func (ic *IbClient) SetWrapper(wrapper IbWrapper) {
 // Set the Connection Context to IbClient
 func (ic *IbClient) SetContext(ctx context.Context) {
 	ic.ctx = ctx
+}
+
+// Set the Connection Options to IbClient
+func (ic *IbClient) SetConnectionOptions(opts string) {
+	ic.connectOptions = opts
 }
 
 // Connect try to connect the TWS or IB GateWay, after this, handshake should be call to get the connection done
@@ -136,7 +141,7 @@ func (ic *IbClient) startAPI() error {
 		startAPI = makeMsgBytes(int64(mSTART_API), int64(v), ic.clientID)
 	}
 
-	log.Info("Start API:", startAPI)
+	log.Debug("Start API:", startAPI)
 	if _, err := ic.writer.Write(startAPI); err != nil {
 		return err
 	}
@@ -155,7 +160,12 @@ func (ic *IbClient) HandShake() error {
 	head := []byte("API\x00")
 	minVer := []byte(strconv.FormatInt(int64(MIN_CLIENT_VER), 10))
 	maxVer := []byte(strconv.FormatInt(int64(MAX_CLIENT_VER), 10))
+
 	connectOptions := []byte("")
+	if ic.connectOptions != "" {
+		connectOptions = []byte(" " + ic.connectOptions)
+	}
+
 	clientVersion := bytes.Join([][]byte{[]byte("v"), minVer, []byte(".."), maxVer, connectOptions}, []byte(""))
 	sizeofCV := make([]byte, 4)
 	binary.BigEndian.PutUint32(sizeofCV, uint32(len(clientVersion)))
@@ -171,7 +181,7 @@ func (ic *IbClient) HandShake() error {
 		return err
 	}
 
-	log.Info("Recv ServerInitInfo...")
+	log.Debug("Recv Server Init Info...")
 	if msgBytes, err = readMsgBytes(ic.reader); err != nil {
 		return err
 	}
@@ -229,7 +239,7 @@ comfirmReadyLoop:
 }
 
 func (ic *IbClient) reset() {
-	log.Info("reset IbClient.")
+	log.Info("Reset IbClient.")
 	ic.reqIDSeq = 0
 	ic.conn = &IbConnection{}
 	ic.conn.reset()
@@ -2585,8 +2595,8 @@ func (ic *IbClient) ReqCompletedOrders(apiOnly bool) {
 //--------------------------three major goroutine -----------------------------------------------------
 //goRequest will get the req from reqChan and send it to TWS
 func (ic *IbClient) goRequest() {
-	log.Info("Start goRequest!")
-	defer log.Info("End goRequest!")
+	log.Info("Requester START!")
+	defer log.Info("Requester END!")
 	defer ic.wg.Done()
 
 	ic.wg.Add(1)
@@ -2618,11 +2628,11 @@ requestLoop:
 //goReceive receive the msg from the socket, get the fields and put them into msgChan
 //goReceive handle the msgBuf which is different from the offical.Not continuously read, but split first and then decode
 func (ic *IbClient) goReceive() {
-	log.Info("Start goReceive!")
-	defer log.Info("End goReceive!")
+	log.Info("Receiver START!")
+	defer log.Info("Receiver END!")
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorf("goReceive has unexpected error: %v", err)
+			log.Errorf("Receiver got unexpected error: %v", err)
 		}
 	}()
 	defer ic.wg.Done()
@@ -2644,22 +2654,22 @@ scanLoop:
 
 	err := scanner.Err()
 	if err, ok := err.(*net.OpError); ok && !err.Temporary() {
-		log.Panicf("errgoReceive: %v", err)
+		log.Panicf("Receiver Panic: %v", err)
 		return
 	} else if err != nil {
-		log.Errorf("errgoReceive Temporary: %v", err)
+		log.Errorf("Receiver Temporary Error: %v", err)
 		ic.errChan <- err
 		ic.reader.Reset(ic.conn)
 		goto scanLoop
 	} else {
-		panic(scanner.Err())
+		log.Panicf("Scanner Panic: %v", scanner.Err())
 	}
 }
 
 //goDecode decode the fields received from the msgChan
 func (ic *IbClient) goDecode() {
-	log.Info("Start goDecode!")
-	defer log.Info("End goDecode!")
+	log.Info("Decoder START!")
+	defer log.Info("Decoder END!")
 	defer ic.wg.Done()
 
 	ic.wg.Add(1)

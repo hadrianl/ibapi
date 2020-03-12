@@ -41,15 +41,15 @@ type Order struct {
 	TriggerMethod                 int64 // 0=Default, 1=Double_Bid_Ask, 2=Last, 3=Double_Last, 4=Bid_Ask, 7=Last_or_Bid_Ask, 8=Mid-point
 	OutsideRTH                    bool
 	Hidden                        bool
-	GoodAfterTime                 string
-	GoodTillDate                  string
+	GoodAfterTime                 string // Format: 20060505 08:00:00 {time zone}
+	GoodTillDate                  string // Format: 20060505 08:00:00 {time zone}
 	OverridePercentageConstraints bool
 	Rule80A                       string // Individual = 'I', Agency = 'A', AgentOtherMember = 'W', IndividualPTIA = 'J', AgencyPTIA = 'U', AgentOtherMemberPTIA = 'M', IndividualPT = 'K', AgencyPT = 'Y', AgentOtherMemberPT = 'N'
 	AllOrNone                     bool
 	MinQty                        int64   `default:"UNSETINT"`
-	PercentOffset                 float64 `default:"UNSETFLOAT"`
+	PercentOffset                 float64 `default:"UNSETFLOAT"` // REL orders only
 	TrailStopPrice                float64 `default:"UNSETFLOAT"`
-	TrailingPercent               float64 `default:"UNSETFLOAT"`
+	TrailingPercent               float64 `default:"UNSETFLOAT"` // TRAILLIMIT orders only
 	//---- financial advisors only -----
 	FAGroup      string
 	FAProfile    string
@@ -61,7 +61,7 @@ type Order struct {
 	Origin             int64  // 0=Customer, 1=Firm
 	ShortSaleSlot      int64  // 1 if you hold the shares, 2 if they will be delivered from elsewhere.  Only for Action=SSHORT
 	DesignatedLocation string // used only when shortSaleSlot=2
-	ExemptCode         int64
+	ExemptCode         int64  `default:-1`
 	// ---------------------------------
 	// ------- SMART routing only ------
 	DiscretionaryAmount float64
@@ -330,14 +330,4 @@ func NewMarketOrder(action string, quantity float64) *Order {
 	o.TotalQuantity = quantity
 
 	return o
-}
-
-func NewOrderState() *OrderState {
-	orderState := &OrderState{}
-
-	orderState.Commission = UNSETFLOAT
-	orderState.MinCommission = UNSETFLOAT
-	orderState.MaxCommission = UNSETFLOAT
-
-	return orderState
 }

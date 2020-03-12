@@ -22,7 +22,7 @@ func (s ScanData) String() string {
 }
 
 type ScannerSubscription struct {
-	NumberOfRows             int
+	NumberOfRows             int64 `default:-1`
 	Instrument               string
 	LocationCode             string
 	ScanCode                 string

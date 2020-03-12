@@ -16,7 +16,7 @@ import (
 
 func main(){
     var err error
-    ibwrapper := Wrapper{}
+    ibwrapper := &Wrapper{}
     ic := NewIbClient(ibwrapper)
     err = ic.Connect("172.0.0.1", 4002, 0)
     if err != nil {

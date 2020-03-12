@@ -17,6 +17,7 @@ const (
 	UNSETFLOAT  float64 = math.MaxFloat64
 	UNSETINT    int64   = math.MaxInt64
 	NO_VALID_ID int64   = -1
+	MAX_MSG_LEN int     = 0xFFFFFF
 )
 
 var emptyField []byte = []byte{}
@@ -74,7 +75,7 @@ func readMsgBytes(reader *bufio.Reader) ([]byte, error) {
 }
 
 func scanFields(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if atEOF && len(data) < 4 {
+	if atEOF || len(data) < 4 {
 		return 0, nil, nil
 	}
 
@@ -356,7 +357,7 @@ func (m *msgBuffer) readString() string {
 func NewMsgBuffer(bs []byte) *msgBuffer {
 	return &msgBuffer{
 		bytes.NewBuffer(bs),
-		nil,
+		bs,
 		nil}
 }
 

@@ -34,6 +34,7 @@ func (d *ibDecoder) interpret(msgBuf *msgBuffer) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorf("Deocde error -> %v", err) //TODO: handle error
+			d.errChan <- err.(error)
 		}
 	}()
 
@@ -44,7 +45,7 @@ func (d *ibDecoder) interpret(msgBuf *msgBuffer) {
 	if processer, ok := d.msgID2process[IN(MsgID)]; ok {
 		processer(msgBuf)
 	} else {
-		log.Infof("MsgId: %v NOT FOUND!!!-> MsgBytes: %v", MsgID, msgBuf.Bytes())
+		log.Warnf("MsgId: %v NOT FOUND!!!-> MsgBytes: %v", MsgID, msgBuf.Bytes())
 	}
 
 }

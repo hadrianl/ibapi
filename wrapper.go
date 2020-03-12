@@ -91,6 +91,7 @@ type IbWrapper interface {
 	CompletedOrdersEnd()
 	CommissionReport(commissionReport CommissionReport)
 	ConnectAck()
+	ConnectionClosed()
 }
 
 type Wrapper struct {
@@ -105,6 +106,10 @@ func (w *Wrapper) GetNextOrderID() (i int64) {
 
 func (w Wrapper) ConnectAck() {
 	log.Printf("<ConnectAck>...")
+}
+
+func (w Wrapper) ConnectionClosed() {
+	log.Printf("<ConnectionClosed>...")
 }
 
 func (w *Wrapper) NextValidID(reqID int64) {

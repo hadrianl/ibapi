@@ -15,9 +15,9 @@ type Contract struct {
 	Currency        string
 	LocalSymbol     string
 	TradingClass    string
-	PrimaryExchange string
+	PrimaryExchange string // pick an actual (ie non-aggregate) exchange that the contract trades on.  DO NOT SET TO SMART.
 	IncludeExpired  bool
-	SecurityIDType  string
+	SecurityIDType  string // CUSIP;SEDOL;ISIN;RIC
 	SecurityID      string
 
 	// combos les

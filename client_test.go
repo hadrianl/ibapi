@@ -1,6 +1,8 @@
 package ibapi
 
 import (
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,10 +12,11 @@ import (
 
 func TestClient(t *testing.T) {
 	// log.SetLevel(log.DebugLevel)
+	runtime.GOMAXPROCS(4)
 	var err error
 	ibwrapper := new(Wrapper)
 	ic := NewIbClient(ibwrapper)
-	err = ic.Connect("192.168.2.226", 4002, 19)
+	err = ic.Connect("192.168.2.226", 4001, 19)
 	if err != nil {
 		log.Info("Connect failed:", err)
 		return
@@ -29,7 +32,7 @@ func TestClient(t *testing.T) {
 
 	ic.ReqCurrentTime()
 	// ic.ReqAutoOpenOrders(true)
-	// ic.ReqAccountUpdates(true, "")
+	ic.ReqAccountUpdates(true, "")
 	// ic.ReqExecutions(ic.GetReqID(), ExecutionFilter{})
 
 	hsi2003 := Contract{ContractID: 376399002, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
@@ -37,24 +40,24 @@ func TestClient(t *testing.T) {
 	// ic.ReqMktDepth(ic.GetReqID(), &hsi1909, 5, true, nil)
 	ic.ReqContractDetails(ic.GetReqID(), &hsi2003)
 	// ic.ReqAllOpenOrders()
-	// ic.ReqMktData(ic.GetReqID(), &hsi1909, "", false, false, nil)
+	ic.ReqMktData(ic.GetReqID(), &hsi2003, "", false, false, nil)
 	// ic.ReqPositions()
 	// ic.ReqRealTimeBars(ic.GetReqID(), &hsi1909, 5, "TRADES", false, nil)
 
-	// tags := []string{"AccountType", "NetLiquidation", "TotalCashValue", "SettledCash",
-	// 	"AccruedCash", "BuyingPower", "EquityWithLoanValue",
-	// 	"PreviousEquityWithLoanValue", "GrossPositionValue", "ReqTEquity",
-	// 	"ReqTMargin", "SMA", "InitMarginReq", "MaintMarginReq", "AvailableFunds",
-	// 	"ExcessLiquidity", "Cushion", "FullInitMarginReq", "FullMaintMarginReq",
-	// 	"FullAvailableFunds", "FullExcessLiquidity", "LookAheadNextChange",
-	// 	"LookAheadInitMarginReq", "LookAheadMaintMarginReq",
-	// 	"LookAheadAvailableFunds", "LookAheadExcessLiquidity",
-	// 	"HighestSeverity", "DayTradesRemaining", "Leverage", "$LEDGER:ALL"}
-	// ic.ReqAccountSummary(ic.GetReqID(), "All", strings.Join(tags, ","))
+	tags := []string{"AccountType", "NetLiquidation", "TotalCashValue", "SettledCash",
+		"AccruedCash", "BuyingPower", "EquityWithLoanValue",
+		"PreviousEquityWithLoanValue", "GrossPositionValue", "ReqTEquity",
+		"ReqTMargin", "SMA", "InitMarginReq", "MaintMarginReq", "AvailableFunds",
+		"ExcessLiquidity", "Cushion", "FullInitMarginReq", "FullMaintMarginReq",
+		"FullAvailableFunds", "FullExcessLiquidity", "LookAheadNextChange",
+		"LookAheadInitMarginReq", "LookAheadMaintMarginReq",
+		"LookAheadAvailableFunds", "LookAheadExcessLiquidity",
+		"HighestSeverity", "DayTradesRemaining", "Leverage", "$LEDGER:ALL"}
+	ic.ReqAccountSummary(ic.GetReqID(), "All", strings.Join(tags, ","))
 	// ic.ReqFamilyCodes()
 	// ic.ReqMatchingSymbols(ic.GetReqID(), "HSI")
 	// ic.ReqScannerParameters()
-	// ic.ReqTickByTickData(ic.GetReqID(), &hsi1909, "Last", 5, false)
+	// ic.ReqTickByTickData(ic.GetReqID(), &hsi2003, "Last", 5, false)
 	// ic.ReqHistoricalTicks(ic.GetReqID(), &hsi1909, "20190916 09:15:00", "", 100, "Trades", false, false, nil)
 	// ic.ReqManagedAccts()
 	// ic.ReqSoftDollarTiers(ic.GetReqID())
@@ -79,7 +82,7 @@ func TestClient(t *testing.T) {
 loop:
 	for {
 		select {
-		case <-time.After(time.Second * 20):
+		case <-time.After(time.Second * 60 * 60 * 24):
 			ic.Disconnect()
 			break loop
 		}

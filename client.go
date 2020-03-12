@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -68,7 +69,7 @@ func (ic *IbClient) ConnState() int {
 func (ic *IbClient) setConnState(connState int) {
 	OldConnState := ic.conn.state
 	ic.conn.state = connState
-	log.Infof("ConnState: %v -> %v", OldConnState, connState)
+	log.Debugf("ConnState: %v -> %v", OldConnState, connState)
 }
 
 // GetReqID before request data or place order
@@ -100,9 +101,11 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 	ic.host = host
 	ic.port = port
 	ic.clientID = clientID
+	log.Debugf("Connecting to %s:%d clientid:%d", host, port, clientID)
 	ic.setConnState(CONNECTING)
 	if err := ic.conn.connect(host, port); err != nil {
 		ic.wrapper.Error(NO_VALID_ID, CONNECT_FAIL.code, CONNECT_FAIL.msg)
+		ic.reset()
 		return CONNECT_FAIL
 	}
 
@@ -122,7 +125,8 @@ func (ic *IbClient) Disconnect() error {
 
 	defer log.Info("Disconnected!")
 	ic.wg.Wait()
-	ic.setConnState(DISCONNECTED)
+	ic.wrapper.ConnectionClosed()
+	ic.reset()
 	return nil
 }
 
@@ -190,7 +194,10 @@ func (ic *IbClient) HandShake() error {
 	v, _ := strconv.Atoi(string(serverInfo[0]))
 	ic.serverVersion = Version(v)
 	ic.connTime = bytesToTime(serverInfo[1])
-	ic.decoder.setVersion(ic.serverVersion) // Init Decoder
+
+	// Init Decoder
+	ic.decoder.setVersion(ic.serverVersion)
+	ic.decoder.errChan = make(chan error, 100)
 	ic.decoder.setmsgID2process()
 	log.Info("ServerVersion:", ic.serverVersion)
 	log.Info("ConnectionTime:", ic.connTime)
@@ -238,11 +245,24 @@ comfirmReadyLoop:
 	return nil
 }
 
+func (ic IbClient) ServerVersion() Version {
+	return ic.serverVersion
+}
+
+func (ic IbClient) ConnectionTime() time.Time {
+	return ic.connTime
+}
+
 func (ic *IbClient) reset() {
 	log.Info("Reset IbClient.")
 	ic.reqIDSeq = 0
 	ic.conn = &IbConnection{}
-	ic.conn.reset()
+	ic.host = ""
+	ic.port = -1
+	ic.extraAuth = false
+	ic.clientID = -1
+	ic.serverVersion = -1
+	ic.connTime = time.Time{}
 	ic.reader = bufio.NewReader(ic.conn)
 	ic.writer = bufio.NewWriter(ic.conn)
 	ic.reqChan = make(chan []byte, 10)
@@ -250,11 +270,27 @@ func (ic *IbClient) reset() {
 	ic.msgChan = make(chan []byte, 100)
 	ic.terminatedSignal = make(chan int, 3)
 	ic.wg = sync.WaitGroup{}
+	ic.connectOptions = ""
+	ic.setConnState(DISCONNECTED)
 
 	if ic.ctx == nil {
 		ic.ctx = context.TODO()
 	}
 
+}
+
+func (ic *IbClient) SetServerLogLevel(logLevel int64) {
+	v := 1
+	fields := make([]interface{}, 0, 3)
+	fields = append(fields,
+		mSET_SERVER_LOGLEVEL,
+		v,
+		logLevel,
+	)
+
+	msg := makeMsgBytes(fields...)
+
+	ic.reqChan <- msg
 }
 
 // ---------------req func ----------------------------------------------
@@ -393,8 +429,11 @@ The API can receive frozen market data from Trader
         trading day, market data will automatically switch back to real-time
         market data.
 
-        marketDataType:int - 1 for real-time streaming market data or 2 for
-            frozen market data
+		marketDataType:int -
+			1 -> realtime streaming market data
+			2 -> frozen market data
+			3 -> delayed market data
+			4 -> delayed frozen market data
 */
 func (ic *IbClient) ReqMarketDataType(marketDataType int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_MARKET_DATA_TYPE {
@@ -2611,13 +2650,12 @@ requestLoop:
 			}
 
 			nn, err := ic.writer.Write(req)
+			err = ic.writer.Flush()
 			log.Debug(nn, req)
 			if err != nil {
-				log.Print(err)
 				ic.writer.Reset(ic.conn)
 				ic.errChan <- err
 			}
-			ic.writer.Flush()
 		case <-ic.terminatedSignal:
 			break requestLoop
 		}
@@ -2629,20 +2667,21 @@ requestLoop:
 //goReceive handle the msgBuf which is different from the offical.Not continuously read, but split first and then decode
 func (ic *IbClient) goReceive() {
 	log.Info("Receiver START!")
-	defer log.Info("Receiver END!")
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorf("Receiver got unexpected error: %v", err)
+			log.Errorf("Receiver got unexpected error: %v... \ntry to reset the Receiver", err)
+			go ic.goReceive()
 		}
 	}()
+	defer log.Info("Receiver END!")
 	defer ic.wg.Done()
 
 	ic.wg.Add(1)
-
+	ic.reader.Reset(ic.conn)
 	scanner := bufio.NewScanner(ic.reader)
 	scanner.Split(scanFields)
 
-scanLoop:
+	// scanLoop:
 	for scanner.Scan() {
 		msgBytes := scanner.Bytes()
 		ic.msgChan <- msgBytes
@@ -2653,16 +2692,16 @@ scanLoop:
 	}
 
 	err := scanner.Err()
-	if err, ok := err.(*net.OpError); ok && !err.Temporary() {
-		log.Panicf("Receiver Panic: %v", err)
-		return
-	} else if err != nil {
-		log.Errorf("Receiver Temporary Error: %v", err)
-		ic.errChan <- err
-		ic.reader.Reset(ic.conn)
-		goto scanLoop
+	if err, ok := err.(*net.OpError); ok {
+		if err.Temporary() {
+			// ic.errChan <- err
+			log.Panicf("Receiver Temporary Error: %v", err) // HELP: it is ok to panic if the error is temporary
+			// goto scanLoop
+		} else {
+			log.Panicf("Receiver Panic: %v", err)
+		}
 	} else {
-		log.Panicf("Scanner Panic: %v", scanner.Err())
+		log.Panicf("Scanner Panic: %v", err)
 	}
 }
 
@@ -2673,17 +2712,22 @@ func (ic *IbClient) goDecode() {
 	defer ic.wg.Done()
 
 	ic.wg.Add(1)
-	msgBuf := NewMsgBuffer(nil)
 
 decodeLoop:
 	for {
 		select {
 		case m := <-ic.msgChan:
-			msgBuf.Reset()
-			msgBuf.Write(m)
-			ic.decoder.interpret(msgBuf)
+			if l := len(m); l > MAX_MSG_LEN {
+				ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, l, m))
+				ic.Disconnect()
+			}
+
+			msgBuf := NewMsgBuffer(m) // FIXME: use object pool
+			go ic.decoder.interpret(msgBuf)
 		case e := <-ic.errChan:
 			log.Error(e)
+		case e := <-ic.decoder.errChan:
+			go ic.wrapper.Error(NO_VALID_ID, BAD_MESSAGE.code, BAD_MESSAGE.msg+e.Error())
 		case <-ic.terminatedSignal:
 			break decodeLoop
 		}

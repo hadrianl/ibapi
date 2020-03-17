@@ -61,7 +61,7 @@ type Order struct {
 	Origin             int64  // 0=Customer, 1=Firm
 	ShortSaleSlot      int64  // 1 if you hold the shares, 2 if they will be delivered from elsewhere.  Only for Action=SSHORT
 	DesignatedLocation string // used only when shortSaleSlot=2
-	ExemptCode         int64  `default:-1`
+	ExemptCode         int64  `default:"-1"`
 	// ---------------------------------
 	// ------- SMART routing only ------
 	DiscretionaryAmount float64

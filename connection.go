@@ -5,16 +5,18 @@ package ibapi
 import (
 	"net"
 	"strconv"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
 // IbConnection wrap the tcp connection with TWS or Gateway
 type IbConnection struct {
-	host         string
-	port         int
-	clientID     int64
-	conn         net.Conn
+	host     string
+	port     int
+	clientID int64
+	// conn         net.Conn
+	conn         *net.TCPConn
 	state        int
 	numBytesSent int
 	numMsgSent   int
@@ -73,6 +75,9 @@ func (ibconn *IbConnection) connect(host string, port int) error {
 		log.Errorf("DialTCP Error: %v", err)
 		return err
 	}
+
+	ibconn.conn.SetKeepAlive(true)
+	ibconn.conn.SetKeepAlivePeriod(5 * time.Second)
 
 	log.Debugf("TCP Socket Connected to: %v", ibconn.conn.RemoteAddr())
 

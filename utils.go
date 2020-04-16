@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"io"
 	"math"
 	"reflect"
 	"strconv"
@@ -75,7 +76,11 @@ func readMsgBytes(reader *bufio.Reader) ([]byte, error) {
 }
 
 func scanFields(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if atEOF || len(data) < 4 {
+	if atEOF {
+		return 0, nil, io.EOF
+	}
+
+	if len(data) < 4 {
 		return 0, nil, nil
 	}
 

@@ -16,7 +16,7 @@ func TestClient(t *testing.T) {
 	var err error
 	ibwrapper := new(Wrapper)
 	ic := NewIbClient(ibwrapper)
-	err = ic.Connect("192.168.2.226", 4001, 19)
+	err = ic.Connect("localhost", 7497, 0)
 	if err != nil {
 		log.Info("Connect failed:", err)
 		return
@@ -35,12 +35,12 @@ func TestClient(t *testing.T) {
 	ic.ReqAccountUpdates(true, "")
 	// ic.ReqExecutions(ic.GetReqID(), ExecutionFilter{})
 
-	hsi2003 := Contract{ContractID: 376399002, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
-	ic.ReqHistoricalData(ic.GetReqID(), &hsi2003, "", "4800 S", "1 min", "TRADES", false, 1, true, nil)
+	hsi := Contract{ContractID: 406354537, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
+	ic.ReqHistoricalData(ic.GetReqID(), &hsi, "", "4800 S", "1 min", "TRADES", false, 1, true, nil)
 	// ic.ReqMktDepth(ic.GetReqID(), &hsi1909, 5, true, nil)
-	ic.ReqContractDetails(ic.GetReqID(), &hsi2003)
+	ic.ReqContractDetails(ic.GetReqID(), &hsi)
 	// ic.ReqAllOpenOrders()
-	ic.ReqMktData(ic.GetReqID(), &hsi2003, "", false, false, nil)
+	ic.ReqMktData(ic.GetReqID(), &hsi, "", false, false, nil)
 	// ic.ReqPositions()
 	// ic.ReqRealTimeBars(ic.GetReqID(), &hsi1909, 5, "TRADES", false, nil)
 

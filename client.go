@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -2635,6 +2636,12 @@ func (ic *IbClient) ReqCompletedOrders(apiOnly bool) {
 //goRequest will get the req from reqChan and send it to TWS
 func (ic *IbClient) goRequest() {
 	log.Info("Requester START!")
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorf("Requester got unexpected error: %v... ", err)
+			ic.Disconnect()
+		}
+	}()
 	defer log.Info("Requester END!")
 	defer ic.wg.Done()
 
@@ -2669,8 +2676,8 @@ func (ic *IbClient) goReceive() {
 	log.Info("Receiver START!")
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorf("Receiver got unexpected error: %v... \ntry to reset the Receiver", err)
-			go ic.goReceive()
+			log.Errorf("Receiver got unexpected error: %v... ", err)
+			ic.Disconnect()
 		}
 	}()
 	defer log.Info("Receiver END!")
@@ -2687,11 +2694,23 @@ func (ic *IbClient) goReceive() {
 		ic.msgChan <- msgBytes
 	}
 
-	if _, ok := <-ic.terminatedSignal; ok {
+	select {
+	case <-ic.terminatedSignal:
+		return
+	default:
+	}
+	// if _, ok := <-ic.terminatedSignal; ok {
+	// 	return
+	// }
+	log.Info("scanner end")
+
+	err := scanner.Err()
+
+	if err == nil {
+		ic.Disconnect()
 		return
 	}
 
-	err := scanner.Err()
 	if err, ok := err.(*net.OpError); ok {
 		if err.Temporary() {
 			// ic.errChan <- err
@@ -2708,6 +2727,12 @@ func (ic *IbClient) goReceive() {
 //goDecode decode the fields received from the msgChan
 func (ic *IbClient) goDecode() {
 	log.Info("Decoder START!")
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorf("Decoder got unexpected error: %v... ", err)
+			ic.Disconnect()
+		}
+	}()
 	defer log.Info("Decoder END!")
 	defer ic.wg.Done()
 
@@ -2719,7 +2744,7 @@ decodeLoop:
 		case m := <-ic.msgChan:
 			if l := len(m); l > MAX_MSG_LEN {
 				ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, l, m))
-				ic.Disconnect()
+				panic(errors.New("Bad Message length"))
 			}
 
 			msgBuf := NewMsgBuffer(m) // FIXME: use object pool

@@ -1,6 +1,8 @@
 package ibapi
 
 import (
+	"context"
+	"fmt"
 	"runtime"
 	"strings"
 	"testing"
@@ -87,5 +89,60 @@ loop:
 			break loop
 		}
 	}
+
+}
+
+func TestClientWithContext(t *testing.T) {
+	// log.SetLevel(log.DebugLevel)
+	runtime.GOMAXPROCS(4)
+	var err error
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*30)
+	ibwrapper := new(Wrapper)
+	ic := NewIbClient(ibwrapper)
+	ic.SetContext(ctx)
+	err = ic.Connect("localhost", 7497, 0)
+	if err != nil {
+		log.Info("Connect failed:", err)
+		return
+	}
+
+	ic.SetConnectionOptions("+PACEAPI")
+	err = ic.HandShake()
+	if err != nil {
+		log.Println("HandShake failed:", err)
+		return
+	}
+	ic.Run()
+
+	ic.ReqCurrentTime()
+	// ic.ReqAutoOpenOrders(true)
+	ic.ReqAccountUpdates(true, "")
+	// ic.ReqExecutions(ic.GetReqID(), ExecutionFilter{})
+
+	hsi := Contract{ContractID: 406354537, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
+	// ic.ReqMktDepth(ic.GetReqID(), &hsi1909, 5, true, nil)
+	ic.ReqContractDetails(ic.GetReqID(), &hsi)
+	// ic.ReqAllOpenOrders()
+	ic.ReqMktData(ic.GetReqID(), &hsi, "", false, false, nil)
+	// ic.ReqPositions()
+	// ic.ReqRealTimeBars(ic.GetReqID(), &hsi1909, 5, "TRADES", false, nil)
+
+	tags := []string{"AccountType", "NetLiquidation", "TotalCashValue", "SettledCash",
+		"AccruedCash", "BuyingPower", "EquityWithLoanValue",
+		"PreviousEquityWithLoanValue", "GrossPositionValue", "ReqTEquity",
+		"ReqTMargin", "SMA", "InitMarginReq", "MaintMarginReq", "AvailableFunds",
+		"ExcessLiquidity", "Cushion", "FullInitMarginReq", "FullMaintMarginReq",
+		"FullAvailableFunds", "FullExcessLiquidity", "LookAheadNextChange",
+		"LookAheadInitMarginReq", "LookAheadMaintMarginReq",
+		"LookAheadAvailableFunds", "LookAheadExcessLiquidity",
+		"HighestSeverity", "DayTradesRemaining", "Leverage", "$LEDGER:ALL"}
+	ic.ReqAccountSummary(ic.GetReqID(), "All", strings.Join(tags, ","))
+
+	f := func() {
+		ic.ReqHistoricalData(ic.GetReqID(), &hsi, "", "4800 S", "1 min", "TRADES", false, 1, true, nil)
+	}
+
+	err = ic.LoopUntilDone(f)
+	fmt.Println(err)
 
 }

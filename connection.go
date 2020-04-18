@@ -5,7 +5,6 @@ package ibapi
 import (
 	"net"
 	"strconv"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -75,9 +74,6 @@ func (ibconn *IbConnection) connect(host string, port int) error {
 		log.Errorf("DialTCP Error: %v", err)
 		return err
 	}
-
-	ibconn.conn.SetKeepAlive(true)
-	ibconn.conn.SetKeepAlivePeriod(5 * time.Second)
 
 	log.Debugf("TCP Socket Connected to: %v", ibconn.conn.RemoteAddr())
 

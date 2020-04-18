@@ -6,7 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"net"
+	"io"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,7 +29,7 @@ type IbClient struct {
 	port             int
 	clientID         int64
 	conn             *IbConnection
-	reader           *bufio.Reader
+	scanner          *bufio.Scanner
 	writer           *bufio.Writer
 	wrapper          IbWrapper
 	decoder          *ibDecoder
@@ -46,6 +46,8 @@ type IbClient struct {
 	extraAuth        bool
 	wg               sync.WaitGroup
 	ctx              context.Context
+	done             chan error
+	err              error
 }
 
 // NewIbClient create IbClient with wrapper
@@ -111,7 +113,6 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 	}
 
 	return nil
-	// 连接后开始
 }
 
 // Disconnect
@@ -121,14 +122,17 @@ func (ic *IbClient) Disconnect() error {
 	ic.terminatedSignal <- 1
 	ic.terminatedSignal <- 1
 	if err := ic.conn.disconnect(); err != nil {
+		ic.done <- err
 		return err
 	}
 
 	defer log.Info("Disconnected!")
 	ic.wg.Wait()
 	ic.wrapper.ConnectionClosed()
+	err := ic.err
+	ic.done <- err
 	ic.reset()
-	return nil
+	return err
 }
 
 // IsConnected check if there is a connection to TWS or GateWay
@@ -187,10 +191,14 @@ func (ic *IbClient) HandShake() error {
 	}
 
 	log.Debug("Recv Server Init Info...")
-	if msgBytes, err = readMsgBytes(ic.reader); err != nil {
-		return err
+	// if msgBytes, err = readMsgBytes(ic.reader); err != nil {
+	// 	return err
+	// }
+	if !ic.scanner.Scan() {
+		return ic.scanner.Err()
 	}
 
+	msgBytes = ic.scanner.Bytes()
 	serverInfo := splitMsgBytes(msgBytes)
 	v, _ := strconv.Atoi(string(serverInfo[0]))
 	ic.serverVersion = Version(v)
@@ -264,7 +272,12 @@ func (ic *IbClient) reset() {
 	ic.clientID = -1
 	ic.serverVersion = -1
 	ic.connTime = time.Time{}
-	ic.reader = bufio.NewReader(ic.conn)
+
+	// init scanner
+	ic.scanner = bufio.NewScanner(ic.conn)
+	ic.scanner.Split(scanFields)
+	ic.scanner.Buffer(make([]byte, 4096), MAX_MSG_LEN)
+
 	ic.writer = bufio.NewWriter(ic.conn)
 	ic.reqChan = make(chan []byte, 10)
 	ic.errChan = make(chan error, 10)
@@ -273,7 +286,8 @@ func (ic *IbClient) reset() {
 	ic.wg = sync.WaitGroup{}
 	ic.connectOptions = ""
 	ic.setConnState(DISCONNECTED)
-
+	ic.err = nil
+	ic.done = make(chan error, 1)
 	if ic.ctx == nil {
 		ic.ctx = context.TODO()
 	}
@@ -2639,6 +2653,7 @@ func (ic *IbClient) goRequest() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorf("Requester got unexpected error: %v... ", err)
+			ic.err = err.(error)
 			ic.Disconnect()
 		}
 	}()
@@ -2677,6 +2692,7 @@ func (ic *IbClient) goReceive() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorf("Receiver got unexpected error: %v... ", err)
+			ic.err = err.(error)
 			ic.Disconnect()
 		}
 	}()
@@ -2684,44 +2700,27 @@ func (ic *IbClient) goReceive() {
 	defer ic.wg.Done()
 
 	ic.wg.Add(1)
-	ic.reader.Reset(ic.conn)
-	scanner := bufio.NewScanner(ic.reader)
-	scanner.Split(scanFields)
 
-	// scanLoop:
-	for scanner.Scan() {
-		msgBytes := scanner.Bytes()
+	for ic.scanner.Scan() {
+		msgBytes := ic.scanner.Bytes()
 		ic.msgChan <- msgBytes
 	}
 
 	select {
 	case <-ic.terminatedSignal:
-		return
 	default:
-	}
-	// if _, ok := <-ic.terminatedSignal; ok {
-	// 	return
-	// }
-	log.Info("scanner end")
-
-	err := scanner.Err()
-
-	if err == nil {
-		ic.Disconnect()
-		return
-	}
-
-	if err, ok := err.(*net.OpError); ok {
-		if err.Temporary() {
-			// ic.errChan <- err
-			log.Panicf("Receiver Temporary Error: %v", err) // HELP: it is ok to panic if the error is temporary
-			// goto scanLoop
-		} else {
-			log.Panicf("Receiver Panic: %v", err)
+		switch err := ic.scanner.Err(); err {
+		case nil:
+			panic(io.EOF)
+		case bufio.ErrTooLong:
+			errBytes := ic.scanner.Bytes()
+			ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, len(errBytes), errBytes))
+			panic(errors.New("Bad Message length"))
+		default:
+			panic(err)
 		}
-	} else {
-		log.Panicf("Scanner Panic: %v", err)
 	}
+
 }
 
 //goDecode decode the fields received from the msgChan
@@ -2730,6 +2729,7 @@ func (ic *IbClient) goDecode() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorf("Decoder got unexpected error: %v... ", err)
+			ic.err = err.(error)
 			ic.Disconnect()
 		}
 	}()
@@ -2742,11 +2742,6 @@ decodeLoop:
 	for {
 		select {
 		case m := <-ic.msgChan:
-			if l := len(m); l > MAX_MSG_LEN {
-				ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, l, m))
-				panic(errors.New("Bad Message length"))
-			}
-
 			msgBuf := NewMsgBuffer(m) // FIXME: use object pool
 			go ic.decoder.interpret(msgBuf)
 		case e := <-ic.errChan:
@@ -2775,3 +2770,35 @@ func (ic *IbClient) Run() error {
 
 	return nil
 }
+
+func (ic *IbClient) LoopUntilDone(fs ...func()) error {
+	for _, f := range fs {
+		go f()
+	}
+
+	select {
+	case <-ic.ctx.Done():
+		return ic.ctx.Err()
+	case err := <-ic.done:
+		return err
+	}
+}
+
+// func (ic *IbClient) RunWithContext() error {
+// 	if !ic.IsConnected() {
+// 		ic.wrapper.Error(NO_VALID_ID, NOT_CONNECTED.code, NOT_CONNECTED.msg)
+// 		return NOT_CONNECTED
+// 	}
+// 	log.Info("RUN Client")
+
+// 	go ic.goRequest()
+// 	go ic.goDecode()
+
+// 	select {
+// 	case <-ic.ctx.Done():
+// 		return ic.ctx.Err()
+// 	case err := <-ic.done:
+// 		return err
+// 	}
+
+// }

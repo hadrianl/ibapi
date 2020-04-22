@@ -94,6 +94,7 @@ type IbWrapper interface {
 	ConnectionClosed()
 }
 
+// Wrapper is the default wrapper provided by this golang implement.
 type Wrapper struct {
 	orderID int64
 }

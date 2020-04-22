@@ -18,8 +18,11 @@ import (
 )
 
 const (
-	MaxRequests      = 95
-	RequestInternal  = 2
+	// MaxRequests is the max request that tws or gateway could take pre second.
+	MaxRequests = 95
+	// RequestInternal is the internal microseconds between requests.
+	RequestInternal = 2
+	// MaxClientVersion is the max client version that this implement could support.
 	MaxClientVersion = 148
 )
 
@@ -54,6 +57,7 @@ type IbClient struct {
 func NewIbClient(wrapper IbWrapper) *IbClient {
 	ic := &IbClient{}
 	ic.SetWrapper(wrapper)
+	ic.done = make(chan error, 1)
 	ic.reset()
 
 	return ic
@@ -81,19 +85,19 @@ func (ic *IbClient) GetReqID() int64 {
 	return ic.reqIDSeq
 }
 
-// Set the Wrapper to IbClient
+// SetWrapper setup the Wrapper
 func (ic *IbClient) SetWrapper(wrapper IbWrapper) {
 	ic.wrapper = wrapper
 	log.Infof("Set Wrapper: %v", wrapper)
 	ic.decoder = &ibDecoder{wrapper: ic.wrapper}
 }
 
-// Set the Connection Context to IbClient
+// SetContext setup the Connection Context
 func (ic *IbClient) SetContext(ctx context.Context) {
 	ic.ctx = ctx
 }
 
-// Set the Connection Options to IbClient
+// SetConnectionOptions setup the Connection Options
 func (ic *IbClient) SetConnectionOptions(opts string) {
 	ic.connectOptions = opts
 }
@@ -115,24 +119,37 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 	return nil
 }
 
-// Disconnect
-func (ic *IbClient) Disconnect() error {
+/* Disconnect tries to
+1.send terminatedSignal to receiver, decoder and requester
+2.disconnect the connection
+3.wait the 3 goroutine
+4.callback  ConnectionClosed
+5.send the err to done chan
+6.reset the IbClient*/
+func (ic *IbClient) Disconnect() (err error) {
+	defer ic.reset()
+	defer func() {
+		err := recover()
+		ic.done <- err.(error)
+	}()
+	defer log.Info("Disconnected!")
 
 	ic.terminatedSignal <- 1
 	ic.terminatedSignal <- 1
 	ic.terminatedSignal <- 1
-	if err := ic.conn.disconnect(); err != nil {
-		ic.done <- err
-		return err
+
+	if err = ic.conn.disconnect(); err != nil {
+		panic(err)
 	}
 
-	defer log.Info("Disconnected!")
 	ic.wg.Wait()
 	ic.wrapper.ConnectionClosed()
-	err := ic.err
-	ic.done <- err
-	ic.reset()
-	return err
+
+	if err = ic.err; err != nil {
+		panic(err)
+	}
+
+	return nil
 }
 
 // IsConnected check if there is a connection to TWS or GateWay
@@ -160,7 +177,8 @@ func (ic *IbClient) startAPI() error {
 	return err
 }
 
-// HandShake with the TWS or GateWay to ensure the version
+// HandShake with the TWS or GateWay to ensure the version,
+// sned the startApi header ,then receive serverVersion and connection time to comfirm the connection with TWS
 func (ic *IbClient) HandShake() error {
 	log.Info("Try to handShake with TWS or GateWay...")
 	var msg bytes.Buffer
@@ -254,11 +272,13 @@ comfirmReadyLoop:
 	return nil
 }
 
-func (ic IbClient) ServerVersion() Version {
+// ServerVersion is the tws or gateway version returned by the API
+func (ic *IbClient) ServerVersion() Version {
 	return ic.serverVersion
 }
 
-func (ic IbClient) ConnectionTime() time.Time {
+// ConnectionTime is the time that connection is comfirmed
+func (ic *IbClient) ConnectionTime() time.Time {
 	return ic.connTime
 }
 
@@ -287,13 +307,13 @@ func (ic *IbClient) reset() {
 	ic.connectOptions = ""
 	ic.setConnState(DISCONNECTED)
 	ic.err = nil
-	ic.done = make(chan error, 1)
 	if ic.ctx == nil {
 		ic.ctx = context.TODO()
 	}
 
 }
 
+// SetServerLogLevel setup the log level of server
 func (ic *IbClient) SetServerLogLevel(logLevel int64) {
 	v := 1
 	fields := make([]interface{}, 0, 3)
@@ -314,27 +334,26 @@ func (ic *IbClient) SetServerLogLevel(logLevel int64) {
 Market Data
 */
 
-/* ReqMktData
-Call this function to request market data. The market data
-        will be returned by the tickPrice and tickSize events.
-
-        reqId: TickerId - The ticker id. Must be a unique value. When the
-            market data returns, it will be identified by this tag. This is
-            also used when canceling the market data.
-        contract:Contract - This structure contains a description of the
-            Contractt for which market data is being requested.
-        genericTickList:str - A commma delimited list of generic tick types.
-            Tick types can be found in the Generic Tick Types page.
-            Prefixing w/ 'mdoff' indicates that top mkt data shouldn't tick.
-            You can specify the news source by postfixing w/ ':<source>.
-            Example: "mdoff,292:FLY+BRF"
-        snapshot:bool - Check to return a single snapshot of Market data and
-            have the market data subscription cancel. Do not enter any
-            genericTicklist values if you use snapshots.
-        regulatorySnapshot: bool - With the US Value Snapshot Bundle for stocks,
-            regulatory snapshots are available for 0.01 USD each.
-        mktDataOptions:TagValueList - For internal use only.
-            Use default value XYZ.
+// ReqMktData Call this function to request market data.
+/*
+The market data will be returned by the tickPrice and tickSize events.
+reqId: TickerId - The ticker id. Must be a unique value. When the
+	market data returns, it will be identified by this tag. This is
+	also used when canceling the market data.
+contract:Contract - This structure contains a description of the
+	Contractt for which market data is being requested.
+genericTickList:str - A commma delimited list of generic tick types.
+	Tick types can be found in the Generic Tick Types page.
+	Prefixing w/ 'mdoff' indicates that top mkt data shouldn't tick.
+	You can specify the news source by postfixing w/ ':<source>.
+	Example: "mdoff,292:FLY+BRF"
+snapshot:bool - Check to return a single snapshot of Market data and
+	have the market data subscription cancel. Do not enter any
+	genericTicklist values if you use snapshots.
+regulatorySnapshot: bool - With the US Value Snapshot Bundle for stocks,
+	regulatory snapshots are available for 0.01 USD each.
+mktDataOptions:TagValueList - For internal use only.
+	Use default value XYZ.
 */
 func (ic *IbClient) ReqMktData(reqID int64, contract *Contract, genericTickList string, snapshot bool, regulatorySnapshot bool, mktDataOptions []TagValue) {
 	switch {
@@ -420,7 +439,7 @@ func (ic *IbClient) ReqMktData(reqID int64, contract *Contract, genericTickList 
 	ic.reqChan <- msg
 }
 
-// CancelMktData
+// CancelMktData cancels the market data
 func (ic *IbClient) CancelMktData(reqID int64) {
 	v := 2
 	fields := make([]interface{}, 0, 3)
@@ -435,20 +454,21 @@ func (ic *IbClient) CancelMktData(reqID int64) {
 	ic.reqChan <- msg
 }
 
-/* ReqMarketDataType
+// ReqMarketDataType changes the market data type.
+/*
 The API can receive frozen market data from Trader
-        Workstation. Frozen market data is the last data recorded in our system.
-        During normal trading hours, the API receives real-time market data. If
-        you use this function, you are telling TWS to automatically switch to
-        frozen market data after the close. Then, before the opening of the next
-        trading day, market data will automatically switch back to real-time
-        market data.
+Workstation. Frozen market data is the last data recorded in our system.
+During normal trading hours, the API receives real-time market data. If
+you use this function, you are telling TWS to automatically switch to
+frozen market data after the close. Then, before the opening of the next
+trading day, market data will automatically switch back to real-time
+market data.
 
-		marketDataType:int -
-			1 -> realtime streaming market data
-			2 -> frozen market data
-			3 -> delayed market data
-			4 -> delayed frozen market data
+marketDataType:int
+	1 -> realtime streaming market data
+	2 -> frozen market data
+	3 -> delayed market data
+	4 -> delayed frozen market data
 */
 func (ic *IbClient) ReqMarketDataType(marketDataType int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_MARKET_DATA_TYPE {
@@ -465,6 +485,7 @@ func (ic *IbClient) ReqMarketDataType(marketDataType int64) {
 	ic.reqChan <- msg
 }
 
+// ReqSmartComponents request the smartComponents.
 func (ic *IbClient) ReqSmartComponents(reqID int64, bboExchange string) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_SMART_COMPONENTS {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support smart components request.")
@@ -476,6 +497,7 @@ func (ic *IbClient) ReqSmartComponents(reqID int64, bboExchange string) {
 	ic.reqChan <- msg
 }
 
+// ReqMarketRule request the market rule.
 func (ic *IbClient) ReqMarketRule(marketRuleID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_MARKET_RULES {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+" It does not support market rule requests.")
@@ -487,6 +509,12 @@ func (ic *IbClient) ReqMarketRule(marketRuleID int64) {
 	ic.reqChan <- msg
 }
 
+// ReqTickByTickData request the tick-by-tick data.
+/*
+call this func to requst tick-by-tick data.Result will be delivered
+via wrapper.TickByTickAllLast() wrapper.TickByTickBidAsk() wrapper.TickByTickMidPoint()
+
+*/
 func (ic *IbClient) ReqTickByTickData(reqID int64, contract *Contract, tickType string, numberOfTicks int64, ignoreSize bool) {
 	if ic.serverVersion < mMIN_SERVER_VER_TICK_BY_TICK {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+" It does not support tick-by-tick data requests.")
@@ -524,6 +552,7 @@ func (ic *IbClient) ReqTickByTickData(reqID int64, contract *Contract, tickType 
 	ic.reqChan <- msg
 }
 
+// CancelTickByTickData cancel the tick-by-tick data
 func (ic *IbClient) CancelTickByTickData(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_TICK_BY_TICK {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+" It does not support tick-by-tick data requests.")
@@ -541,15 +570,16 @@ func (ic *IbClient) CancelTickByTickData(reqID int64) {
    ##########################################################################
 */
 
-/*CalculateImpliedVolatility
+//CalculateImpliedVolatility calculate the volatility of the option
+/*
 Call this function to calculate volatility for a supplied
-        option price and underlying price. Result will be delivered
-        via EWrapper.tickOptionComputation()
+option price and underlying price. Result will be delivered
+via wrapper.TickOptionComputation()
 
-        reqId:TickerId -  The request id.
-        contract:Contract -  Describes the contract.
-        optionPrice:double - The price of the option.
-        underPrice:double - Price of the underlying.
+	reqId:TickerId -  The request id.
+	contract:Contract -  Describes the contract.
+	optionPrice:float64 - The price of the option.
+	underPrice:float64 - Price of the underlying.
 */
 func (ic *IbClient) CalculateImpliedVolatility(reqID int64, contract *Contract, optionPrice float64, underPrice float64, impVolOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT {
@@ -605,6 +635,17 @@ func (ic *IbClient) CalculateImpliedVolatility(reqID int64, contract *Contract, 
 	ic.reqChan <- msg
 }
 
+//CalculateOptionPrice calculate the price of the option
+/*
+Call this function to calculate price for a supplied
+option volatility and underlying price. Result will be delivered
+via wrapper.TickOptionComputation()
+
+	reqId:TickerId -  The request id.
+	contract:Contract -  Describes the contract.
+	volatility:float64 - The volatility of the option.
+	underPrice:float64 - Price of the underlying.
+*/
 func (ic *IbClient) CalculateOptionPrice(reqID int64, contract *Contract, volatility float64, underPrice float64, optPrcOptions []TagValue) {
 
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT {
@@ -660,6 +701,7 @@ func (ic *IbClient) CalculateOptionPrice(reqID int64, contract *Contract, volati
 	ic.reqChan <- msg
 }
 
+// CancelCalculateOptionPrice cancels the calculation of option price
 func (ic *IbClient) CancelCalculateOptionPrice(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT {
 		ic.wrapper.Error(reqID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support calculateImpliedVolatility req.")
@@ -672,21 +714,23 @@ func (ic *IbClient) CancelCalculateOptionPrice(reqID int64) {
 	ic.reqChan <- msg
 }
 
-/*ExerciseOptions
-reqId:TickerId - The ticker id. multipleust be a unique value.
-        contract:Contract - This structure contains a description of the
-            contract to be exercised
-        exerciseAction:int - Specifies whether you want the option to lapse
-            or be exercised.
-            Values are 1 = exercise, 2 = lapse.
-        exerciseQuantity:int - The quantity you want to exercise.
-        account:str - destination account
-        override:int - Specifies whether your setting will override the system's
-            natural action. For example, if your action is "exercise" and the
-            option is not in-the-money, by natural action the option would not
-            exercise. If you have override set to "yes" the natural action would
-             be overridden and the out-of-the money option would be exercised.
-            Values are: 0 = no, 1 = yes.
+// ExerciseOptions exercise the options.
+/*
+call this func to exercise th options.
+	reqId:TickerId - The ticker id. multipleust be a unique value.
+	contract:Contract - This structure contains a description of the
+		contract to be exercised
+	exerciseAction:int - Specifies whether you want the option to lapse
+		or be exercised.
+		Values are 1 = exercise, 2 = lapse.
+	exerciseQuantity:int - The quantity you want to exercise.
+	account:str - destination account
+	override:int - Specifies whether your setting will override the system's
+		natural action. For example, if your action is "exercise" and the
+		option is not in-the-money, by natural action the option would not
+		exercise. If you have override set to "yes" the natural action would
+			be overridden and the out-of-the money option would be exercised.
+		Values are: 0 = no, 1 = yes.
 */
 func (ic *IbClient) ExerciseOptions(reqID int64, contract *Contract, exerciseAction int, exerciseQuantity int, account string, override int) {
 	if ic.serverVersion < mMIN_SERVER_VER_TRADING_CLASS && contract.TradingClass != "" {
@@ -735,17 +779,15 @@ func (ic *IbClient) ExerciseOptions(reqID int64, contract *Contract, exerciseAct
    ########################################################################
 */
 
-/*PlaceOrder
-Call this function to place an order. The order status will
-        be returned by the orderStatus event.
+//PlaceOrder place an order to tws or gateway
+/*
+Call this function to place an order. The order status will be returned by the orderStatus event.
+	orderId:OrderId - The order id.
+		You must specify a unique value. When the order START_APItus returns, it will be identified by this tag.This tag is also used when canceling the order.
+	contract:Contract - This structure contains a description of the contract which is being traded.
+	order:Order - This structure contains the details of tradedhe order.
 
-        orderId:OrderId - The order id. You must specify a unique value. When the
-            order START_APItus returns, it will be identified by this tag.
-            This tag is also used when canceling the order.
-        contract:Contract - This structure contains a description of the
-            contract which is being traded.
-        order:Order - This structure contains the details of tradedhe order.
-            Note: Each client MUST connect with a unique clientId.
+Note: Each client MUST connect with a unique clientId.
 */
 func (ic *IbClient) PlaceOrder(orderID int64, contract *Contract, order *Order) {
 	switch v := ic.serverVersion; {
@@ -1246,12 +1288,14 @@ func (ic *IbClient) PlaceOrder(orderID int64, contract *Contract, order *Order) 
 
 }
 
+// CancelOrder cancel an order by orderId
 func (ic *IbClient) CancelOrder(orderID int64) {
 	v := 1
 	msg := makeMsgBytes(mCANCEL_ORDER, v, orderID)
 	ic.reqChan <- msg
 }
 
+// ReqOpenOrders request the open orders of this client
 func (ic *IbClient) ReqOpenOrders() {
 	v := 1
 	msg := makeMsgBytes(mREQ_OPEN_ORDERS, v)
@@ -1266,6 +1310,7 @@ func (ic *IbClient) ReqAutoOpenOrders(autoBind bool) {
 	ic.reqChan <- msg
 }
 
+// ReqAllOpenOrders request all the open orders including the orders of other clients and tws
 func (ic *IbClient) ReqAllOpenOrders() {
 	v := 1
 	msg := makeMsgBytes(mREQ_ALL_OPEN_ORDERS, v)
@@ -1273,6 +1318,7 @@ func (ic *IbClient) ReqAllOpenOrders() {
 	ic.reqChan <- msg
 }
 
+// ReqGlobalCancel cancel all the orders including the orders of other clients and tws
 func (ic *IbClient) ReqGlobalCancel() {
 	v := 1
 	msg := makeMsgBytes(mREQ_GLOBAL_CANCEL, v)
@@ -1280,6 +1326,7 @@ func (ic *IbClient) ReqGlobalCancel() {
 	ic.reqChan <- msg
 }
 
+// ReqIDs request th next valid ID
 /*
 Call this function to request from TWS the next valid ID that
 can be used when placing an order.  After calling this function, the
@@ -1287,7 +1334,6 @@ nextValidId() event will be triggered, and the id returned is that next
 valid ID. That ID will reflect any autobinding that has occurred (which
 generates new IDs and increments the next valid ID therein).
 
-numIds:int - deprecated
 */
 func (ic *IbClient) ReqIDs() {
 	v := 1
@@ -1302,6 +1348,12 @@ func (ic *IbClient) ReqIDs() {
    ########################################################################
 */
 
+// ReqAccountUpdates request the account info.
+/*
+call this func to request the information of account,
+or subscribe the update by setting param:subscribe true.
+Result will be delivered via wrapper.UpdateAccountValue() and wrapper.UpdateAccountTime().
+*/
 func (ic *IbClient) ReqAccountUpdates(subscribe bool, accName string) {
 	v := 2
 	msg := makeMsgBytes(mREQ_ACCT_DATA, v, subscribe, accName)
@@ -1309,10 +1361,10 @@ func (ic *IbClient) ReqAccountUpdates(subscribe bool, accName string) {
 	ic.reqChan <- msg
 }
 
-/*ReqAccountSummary
+// ReqAccountSummary request the account summary.
+/*
 Call this method to request and keep up to date the data that appears
-        on the TWS Account Window Summary tab. The data is returned by
-        accountSummary().
+        on the TWS Account Window Summary tab. Result will be delivered via wrapper.AccountSummary().
 
         Note:   This request is designed for an FA managed account but can be
         used for any multi-account structure.
@@ -1371,6 +1423,7 @@ func (ic *IbClient) ReqAccountSummary(reqID int64, groupName string, tags string
 	ic.reqChan <- msg
 }
 
+// CancelAccountSummary cancel the account summary.
 func (ic *IbClient) CancelAccountSummary(reqID int64) {
 	v := 1
 	msg := makeMsgBytes(mCANCEL_ACCOUNT_SUMMARY, v, reqID)
@@ -1378,6 +1431,7 @@ func (ic *IbClient) CancelAccountSummary(reqID int64) {
 	ic.reqChan <- msg
 }
 
+// ReqPositions request and subcribe the positions of current account.
 func (ic *IbClient) ReqPositions() {
 	if ic.serverVersion < mMIN_SERVER_VER_POSITIONS {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support positions request.")
@@ -1389,6 +1443,7 @@ func (ic *IbClient) ReqPositions() {
 	ic.reqChan <- msg
 }
 
+// CancelPositions cancel the positions update
 func (ic *IbClient) CancelPositions() {
 	if ic.serverVersion < mMIN_SERVER_VER_POSITIONS {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support positions request.")
@@ -1401,6 +1456,7 @@ func (ic *IbClient) CancelPositions() {
 	ic.reqChan <- msg
 }
 
+// ReqPositionsMulti request the positions update of assigned account.
 func (ic *IbClient) ReqPositionsMulti(reqID int64, account string, modelCode string) {
 	if ic.serverVersion < mMIN_SERVER_VER_MODELS_SUPPORT {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support positions multi request.")
@@ -1412,6 +1468,7 @@ func (ic *IbClient) ReqPositionsMulti(reqID int64, account string, modelCode str
 	ic.reqChan <- msg
 }
 
+// CancelPositionsMulti cancel the positions update of assigned account.
 func (ic *IbClient) CancelPositionsMulti(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_MODELS_SUPPORT {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support cancel positions multi request.")
@@ -1424,6 +1481,7 @@ func (ic *IbClient) CancelPositionsMulti(reqID int64) {
 	ic.reqChan <- msg
 }
 
+// ReqAccountUpdatesMulti request and subscrie the assigned account update.
 func (ic *IbClient) ReqAccountUpdatesMulti(reqID int64, account string, modelCode string, ledgerAndNLV bool) {
 	if ic.serverVersion < mMIN_SERVER_VER_MODELS_SUPPORT {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support account updates multi request.")
@@ -1436,6 +1494,7 @@ func (ic *IbClient) ReqAccountUpdatesMulti(reqID int64, account string, modelCod
 	ic.reqChan <- msg
 }
 
+// CancelAccountUpdatesMulti cancel the assigned account update.
 func (ic *IbClient) CancelAccountUpdatesMulti(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_MODELS_SUPPORT {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support cancel account updates multi request.")
@@ -1455,6 +1514,7 @@ func (ic *IbClient) CancelAccountUpdatesMulti(reqID int64) {
 
 */
 
+// ReqPnL request and subscribe the PnL of assigned account.
 func (ic *IbClient) ReqPnL(reqID int64, account string, modelCode string) {
 	if ic.serverVersion < mMIN_SERVER_VER_PNL {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support PnL request.")
@@ -1466,6 +1526,7 @@ func (ic *IbClient) ReqPnL(reqID int64, account string, modelCode string) {
 	ic.reqChan <- msg
 }
 
+// CancelPnL cancel the PnL update of assigned account.
 func (ic *IbClient) CancelPnL(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_PNL {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support PnL request.")
@@ -1477,6 +1538,7 @@ func (ic *IbClient) CancelPnL(reqID int64) {
 	ic.reqChan <- msg
 }
 
+// ReqPnLSingle request and subscribe the single contract PnL of assigned account.
 func (ic *IbClient) ReqPnLSingle(reqID int64, account string, modelCode string, contractID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_PNL {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support PnL request.")
@@ -1488,6 +1550,7 @@ func (ic *IbClient) ReqPnLSingle(reqID int64, account string, modelCode string, 
 	ic.reqChan <- msg
 }
 
+// CancelPnLSingle cancel the single contract PnL update of assigned account.
 func (ic *IbClient) CancelPnLSingle(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_PNL {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support PnL request.")
@@ -1506,20 +1569,21 @@ func (ic *IbClient) CancelPnLSingle(reqID int64) {
 
 */
 
-/*ReqExecutions
+//ReqExecutions request and subscribe the executions filtered by execFilter.
+/*
 When this function is called, the execution reports that meet the
-        filter criteria are downloaded to the client via the execDetails()
-        function. To view executions beyond the past 24 hours, open the
-        Trade Log in TWS and, while the Trade Log is displayed, request
-        the executions again from the API.
+filter criteria are downloaded to the client via the execDetails()
+function. To view executions beyond the past 24 hours, open the
+Trade Log in TWS and, while the Trade Log is displayed, request
+the executions again from the API.
 
-        reqId:int - The ID of the data request. Ensures that responses are
-            matched to requests if several requests are in process.
-        execFilter:ExecutionFilter - This object contains attributes that
-            describe the filter criteria used to determine which execution
-            reports are returned.
+	reqId:int - The ID of the data request. Ensures that responses are
+		matched to requests if several requests are in process.
+	execFilter:ExecutionFilter - This object contains attributes that
+		describe the filter criteria used to determine which execution
+		reports are returned.
 
-        NOTE: Time format must be 'yyyymmdd-hh:mm:ss' Eg: '20030702-14:55'
+	NOTE: Time format must be 'yyyymmdd-hh:mm:ss' Eg: '20030702-14:55'
 */
 func (ic *IbClient) ReqExecutions(reqID int64, execFilter ExecutionFilter) {
 	v := 3
@@ -1550,6 +1614,7 @@ func (ic *IbClient) ReqExecutions(reqID int64, execFilter ExecutionFilter) {
 
 */
 
+// ReqContractDetails request the contract details.
 func (ic *IbClient) ReqContractDetails(reqID int64, contract *Contract) {
 	if ic.serverVersion < mMIN_SERVER_VER_SEC_ID_TYPE &&
 		(contract.SecurityIDType != "" || contract.SecurityID != "") {
@@ -1615,6 +1680,7 @@ func (ic *IbClient) ReqContractDetails(reqID int64, contract *Contract) {
    #########################################################################
 */
 
+// ReqMktDepthExchanges request the exchanges of market depth.
 func (ic *IbClient) ReqMktDepthExchanges() {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_MKT_DEPTH_EXCHANGES {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support market depth exchanges request.")
@@ -1626,7 +1692,8 @@ func (ic *IbClient) ReqMktDepthExchanges() {
 	ic.reqChan <- msg
 }
 
-/*ReqMktDepth
+//ReqMktDepth request the market depth.
+/*
 Call this function to request market depth for a specific
 contract. The market depth will be returned by the updateMktDepth() and
 updateMktDepthL2() events.
@@ -1712,6 +1779,7 @@ func (ic *IbClient) ReqMktDepth(reqID int64, contract *Contract, numRows int, is
 	ic.reqChan <- msg
 }
 
+// CancelMktDepth cancel market depth.
 func (ic *IbClient) CancelMktDepth(reqID int64, isSmartDepth bool) {
 	if ic.serverVersion < mMIN_SERVER_VER_SMART_DEPTH && isSmartDepth {
 		ic.wrapper.Error(reqID, UPDATE_TWS.code, UPDATE_TWS.msg+" It does not support SMART depth cancel.")
@@ -1735,13 +1803,14 @@ func (ic *IbClient) CancelMktDepth(reqID int64, isSmartDepth bool) {
    #########################################################################
 */
 
-/*ReqNewsBulletins
+//ReqNewsBulletins request and subcribe the news bulletins
+/*
 Call this function to start receiving news bulletins. Each bulletin
-        will be returned by the updateNewsBulletin() event.
+will be returned by the updateNewsBulletin() event.
 
-        allMsgs:bool - If set to TRUE, returns all the existing bulletins for
-        the currencyent day and any new ones. If set to FALSE, will only
-        return new bulletins. "
+	allMsgs:bool - If set to TRUE, returns all the existing bulletins for
+	the currencyent day and any new ones. If set to FALSE, will only
+	return new bulletins. "
 */
 func (ic *IbClient) ReqNewsBulletins(allMsgs bool) {
 	v := 1
@@ -1751,6 +1820,7 @@ func (ic *IbClient) ReqNewsBulletins(allMsgs bool) {
 	ic.reqChan <- msg
 }
 
+// CancelNewsBulletins cancel the news bulletins
 func (ic *IbClient) CancelNewsBulletins() {
 	v := 1
 
@@ -1765,11 +1835,12 @@ func (ic *IbClient) CancelNewsBulletins() {
    #########################################################################
 */
 
-/*ReqManagedAccts
-Call this function to request the list of managed accounts. The list
-        will be returned by the managedAccounts() function on the EWrapper.
+// ReqManagedAccts request the managed accounts.
+/*
+Call this function to request the list of managed accounts.
+Result will be delivered via wrapper.ManagedAccounts().
 
-        Note:  This request can only be made when connected to a FA managed account.
+    Note:  This request can only be made when connected to a FA managed account.
 */
 func (ic *IbClient) ReqManagedAccts() {
 	v := 1
@@ -1779,7 +1850,10 @@ func (ic *IbClient) ReqManagedAccts() {
 	ic.reqChan <- msg
 }
 
-//RequestFA  faData :  0->"N/A", 1->"GROUPS", 2->"PROFILES", 3->"ALIASES"
+// RequestFA request fa.
+/*
+faData :  0->"N/A", 1->"GROUPS", 2->"PROFILES", 3->"ALIASES"
+*/
 func (ic *IbClient) RequestFA(faData int) {
 	v := 1
 
@@ -1788,17 +1862,18 @@ func (ic *IbClient) RequestFA(faData int) {
 	ic.reqChan <- msg
 }
 
-/*ReplaceFA
+// ReplaceFA replace fa.
+/*
 Call this function to modify FA configuration information from the
-        API. Note that this can also be done manually in TWS itself.
+API. Note that this can also be done manually in TWS itself.
 
-        faData:FaDataType - Specifies the type of Financial Advisor
-            configuration data beingingg requested. Valid values include:
-            1 = GROUPS
-            2 = PROFILE
-            3 = ACCOUNT ALIASES
-        cxml: str - The XML string containing the new FA configuration
-            information.
+	faData:FaDataType - Specifies the type of Financial Advisor
+		configuration data beingingg requested. Valid values include:
+		1 = GROUPS
+		2 = PROFILE
+		3 = ACCOUNT ALIASES
+	cxml: str - The XML string containing the new FA configuration
+		information.
 */
 func (ic *IbClient) ReplaceFA(faData int, cxml string) {
 	v := 1
@@ -1814,60 +1889,61 @@ func (ic *IbClient) ReplaceFA(faData int, cxml string) {
    #########################################################################
 */
 
-/*ReqHistoricalData
+//ReqHistoricalData request historical data and subcribe the new data if keepUpToDate is assigned.
+/*
 Requests contracts' historical data. When requesting historical data, a
-        finishing time and date is required along with a duration string. The
-        resulting bars will be returned in EWrapper.historicalData()
+finishing time and date is required along with a duration string.
+Result will be delivered via wrapper.HistoricalData()
 
-        reqId:TickerId - The id of the request. Must be a unique value. When the
-            market data returns, it whatToShowill be identified by this tag. This is also
-            used when canceling the market data.
-        contract:Contract - This object contains a description of the contract for which
-            market data is being requested.
-        endDateTime:str - Defines a query end date and time at any point during the past 6 mos.
-            Valid values include any date/time within the past six months in the format:
-            yyyymmdd HH:mm:ss ttt
+	reqId:TickerId - The id of the request. Must be a unique value. When the
+		market data returns, it whatToShowill be identified by this tag. This is also
+		used when canceling the market data.
+	contract:Contract - This object contains a description of the contract for which
+		market data is being requested.
+	endDateTime:str - Defines a query end date and time at any point during the past 6 mos.
+		Valid values include any date/time within the past six months in the format:
+		yyyymmdd HH:mm:ss ttt
 
-            where "ttt" is the optional time zone.
-        durationStr:str - Set the query duration up to one week, using a time unit
-            of seconds, days or weeks. Valid values include any integer followed by a space
-            and then S (seconds), D (days) or W (week). If no unit is specified, seconds is used.
-        barSizeSetting:str - Specifies the size of the bars that will be returned (within IB/TWS listimits).
-            Valid values include:
-            1 sec
-            5 secs
-            15 secs
-            30 secs
-            1 min
-            2 mins
-            3 mins
-            5 mins
-            15 mins
-            30 mins
-            1 hour
-            1 day
-        whatToShow:str - Determines the nature of data beinging extracted. Valid values include:
+		where "ttt" is the optional time zone.
+	durationStr:str - Set the query duration up to one week, using a time unit
+		of seconds, days or weeks. Valid values include any integer followed by a space
+		and then S (seconds), D (days) or W (week). If no unit is specified, seconds is used.
+	barSizeSetting:str - Specifies the size of the bars that will be returned (within IB/TWS listimits).
+		Valid values include:
+		1 sec
+		5 secs
+		15 secs
+		30 secs
+		1 min
+		2 mins
+		3 mins
+		5 mins
+		15 mins
+		30 mins
+		1 hour
+		1 day
+	whatToShow:str - Determines the nature of data beinging extracted. Valid values include:
 
-            TRADES
-            MIDPOINT
-            BID
-            ASK
-            BID_ASK
-            HISTORICAL_VOLATILITY
-            OPTION_IMPLIED_VOLATILITY
-        useRTH:int - Determines whether to return all data available during the requested time span,
-            or only data that falls within regular trading hours. Valid values include:
+		TRADES
+		MIDPOINT
+		BID
+		ASK
+		BID_ASK
+		HISTORICAL_VOLATILITY
+		OPTION_IMPLIED_VOLATILITY
+	useRTH:int - Determines whether to return all data available during the requested time span,
+		or only data that falls within regular trading hours. Valid values include:
 
-            0 - all data is returned even where the market in question was outside of its
-            regular trading hours.
-            1 - only data within the regular trading hours is returned, even if the
-            requested time span falls partially or completely outside of the RTH.
-        formatDate: int - Determines the date format applied to returned bars. validd values include:
+		0 - all data is returned even where the market in question was outside of its
+		regular trading hours.
+		1 - only data within the regular trading hours is returned, even if the
+		requested time span falls partially or completely outside of the RTH.
+	formatDate: int - Determines the date format applied to returned bars. validd values include:
 
-            1 - dates applying to bars returned in the format: yyyymmdd{space}{space}hh:mm:dd
-            2 - dates are returned as a long integer specifying the number of seconds since
-                1/1/1970 GMT.
-        chartOptions:TagValueList - For internal use only. Use default value XYZ.
+		1 - dates applying to bars returned in the format: yyyymmdd{space}{space}hh:mm:dd
+		2 - dates are returned as a long integer specifying the number of seconds since
+			1/1/1970 GMT.
+	chartOptions:TagValueList - For internal use only. Use default value XYZ.
 */
 func (ic *IbClient) ReqHistoricalData(reqID int64, contract *Contract, endDateTime string, duration string, barSize string, whatToShow string, useRTH bool, formatDate int, keepUpToDate bool, chartOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_TRADING_CLASS {
@@ -1946,12 +2022,13 @@ func (ic *IbClient) ReqHistoricalData(reqID int64, contract *Contract, endDateTi
 	ic.reqChan <- msg
 }
 
-/*CancelHistoricalData
+// CancelHistoricalData cancel the update of historical data.
+/*
 Used if an internet disconnect has occurred or the results of a query
-        are otherwise delayed and the application is no longer interested in receiving
-        the data.
+are otherwise delayed and the application is no longer interested in receiving
+the data.
 
-        reqId:TickerId - The ticker ID. Must be a unique value.
+	reqId:TickerId - The ticker ID. Must be a unique value.
 */
 func (ic *IbClient) CancelHistoricalData(reqID int64) {
 	v := 1
@@ -1960,6 +2037,10 @@ func (ic *IbClient) CancelHistoricalData(reqID int64) {
 	ic.reqChan <- msg
 }
 
+// ReqHeadTimeStamp request the head timestamp of assigned contract.
+/*
+call this func to get the headmost data you can get
+*/
 func (ic *IbClient) ReqHeadTimeStamp(reqID int64, contract *Contract, whatToShow string, useRTH bool, formatDate int) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_HEAD_TIMESTAMP {
 		ic.wrapper.Error(reqID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support head time stamp requests.")
@@ -1994,6 +2075,7 @@ func (ic *IbClient) ReqHeadTimeStamp(reqID int64, contract *Contract, whatToShow
 	ic.reqChan <- msg
 }
 
+// CancelHeadTimeStamp cancel the head timestamp data.
 func (ic *IbClient) CancelHeadTimeStamp(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_CANCEL_HEADTIMESTAMP {
 		ic.wrapper.Error(reqID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support head time stamp requests.")
@@ -2005,6 +2087,7 @@ func (ic *IbClient) CancelHeadTimeStamp(reqID int64) {
 	ic.reqChan <- msg
 }
 
+// ReqHistogramData request histogram data.
 func (ic *IbClient) ReqHistogramData(reqID int64, contract *Contract, useRTH bool, timePeriod string) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_HISTOGRAM {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support histogram requests..")
@@ -2036,6 +2119,7 @@ func (ic *IbClient) ReqHistogramData(reqID int64, contract *Contract, useRTH boo
 	ic.reqChan <- msg
 }
 
+// CancelHistogramData cancel histogram data.
 func (ic *IbClient) CancelHistogramData(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_HISTOGRAM {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support histogram requests..")
@@ -2047,6 +2131,7 @@ func (ic *IbClient) CancelHistogramData(reqID int64) {
 	ic.reqChan <- msg
 }
 
+// ReqHistoricalTicks request historical ticks.
 func (ic *IbClient) ReqHistoricalTicks(reqID int64, contract *Contract, startDateTime string, endDateTime string, numberOfTicks int, whatToShow string, useRTH bool, ignoreSize bool, miscOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_HISTORICAL_TICKS {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support historical ticks requests..")
@@ -2091,7 +2176,7 @@ func (ic *IbClient) ReqHistoricalTicks(reqID int64, contract *Contract, startDat
 	ic.reqChan <- msg
 }
 
-//ReqScannerParameters requests an XML string that describes all possible scanner queries.
+// ReqScannerParameters requests an XML string that describes all possible scanner queries.
 func (ic *IbClient) ReqScannerParameters() {
 	v := 1
 	msg := makeMsgBytes(mREQ_SCANNER_PARAMETERS, v)
@@ -2099,12 +2184,14 @@ func (ic *IbClient) ReqScannerParameters() {
 	ic.reqChan <- msg
 }
 
-/*ReqScannerSubscription
-reqId:int - The ticker ID. Must be a unique value.
-        scannerSubscription:ScannerSubscription - This structure contains
-            possible parameters used to filter results.
-        scannerSubscriptionOptions:TagValueList - For internal use only.
-            Use default value XYZ.
+// ReqScannerSubscription subcribes a scanner that matched the subcription.
+/*
+call this func to subcribe a scanner which could scan the market.
+	reqId:int - The ticker ID. Must be a unique value.
+	scannerSubscription:ScannerSubscription - This structure contains
+		possible parameters used to filter results.
+	scannerSubscriptionOptions:TagValue - For internal use only.
+		Use default value XYZ.
 */
 func (ic *IbClient) ReqScannerSubscription(reqID int64, subscription *ScannerSubscription, scannerSubscriptionOptions []TagValue, scannerSubscriptionFilterOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_SCANNER_GENERIC_OPTS {
@@ -2161,7 +2248,10 @@ func (ic *IbClient) ReqScannerSubscription(reqID int64, subscription *ScannerSub
 	ic.reqChan <- msg
 }
 
-//CancelScannerSubscription reqId:int - The ticker ID. Must be a unique value.
+// CancelScannerSubscription cancel scanner.
+/*
+	reqId:int - The ticker ID. Must be a unique value.
+*/
 func (ic *IbClient) CancelScannerSubscription(reqID int64) {
 	v := 1
 	msg := makeMsgBytes(mCANCEL_SCANNER_SUBSCRIPTION, v, reqID)
@@ -2176,31 +2266,32 @@ func (ic *IbClient) CancelScannerSubscription(reqID int64) {
 
 */
 
-/*ReqRealTimeBars
-Call the reqRealTimeBars() function to start receiving real time bar
-        results through the realtimeBar() EWrapper function.
+// ReqRealTimeBars request realtime bars.
+/*
+call this func to start receiving real time bar.
+Result will be delivered via wrapper.RealtimeBar().
 
-        reqId:TickerId - The Id for the request. Must be a unique value. When the
-            data is received, it will be identified by this Id. This is also
-            used when canceling the request.
-        contract:Contract - This object contains a description of the contract
-            for which real time bars are being requested
-        barSize:int - Currently only 5 second bars are supported, if any other
-            value is used, an exception will be thrown.
-        whatToShow:str - Determines the nature of the data extracted. Valid
-            values include:
-            TRADES
-            BID
-            ASK
-            MIDPOINT
-        useRTH:bool - Regular Trading Hours only. Valid values include:
-            0 = all data available during the time span requested is returned,
-                including time intervals when the market in question was
-                outside of regular trading hours.
-            1 = only data within the regular trading hours for the product
-                requested is returned, even if the time time span falls
-                partially or completely outside.
-        realTimeBarOptions:TagValueList - For internal use only. Use default value XYZ.
+	reqId:TickerId - The Id for the request. Must be a unique value. When the
+		data is received, it will be identified by this Id. This is also
+		used when canceling the request.
+	contract:Contract - This object contains a description of the contract
+		for which real time bars are being requested
+	barSize:int - Currently only 5 second bars are supported, if any other
+		value is used, an exception will be thrown.
+	whatToShow:str - Determines the nature of the data extracted. Valid
+		values include:
+		TRADES
+		BID
+		ASK
+		MIDPOINT
+	useRTH:bool - Regular Trading Hours only. Valid values include:
+		0 = all data available during the time span requested is returned,
+			including time intervals when the market in question was
+			outside of regular trading hours.
+		1 = only data within the regular trading hours for the product
+			requested is returned, even if the time time span falls
+			partially or completely outside.
+	realTimeBarOptions:[]TagValue - For internal use only. Use default value XYZ.
 */
 func (ic *IbClient) ReqRealTimeBars(reqID int64, contract *Contract, barSize int, whatToShow string, useRTH bool, realTimeBarsOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_TRADING_CLASS && contract.TradingClass != "" {
@@ -2254,6 +2345,7 @@ func (ic *IbClient) ReqRealTimeBars(reqID int64, contract *Contract, barSize int
 	ic.reqChan <- msg
 }
 
+// CancelRealTimeBars cancel realtime bars.
 func (ic *IbClient) CancelRealTimeBars(reqID int64) {
 	v := 1
 
@@ -2268,28 +2360,29 @@ func (ic *IbClient) CancelRealTimeBars(reqID int64) {
    #########################################################################
 */
 
-/*ReqFundamentalData
-Call this function to receive fundamental data for
-        stocks. The appropriate market data subscription must be set up in
-        Account Management before you can receive this data.
-        Fundamental data will be returned at EWrapper.fundamentalData().
+// ReqFundamentalData request fundamental data.
+/*
+call this func to receive fundamental data for
+stocks. The appropriate market data subscription must be set up in
+Account Management before you can receive this data.
+Result will be delivered via wrapper.FundamentalData().
 
-        reqFundamentalData() can handle conid specified in the Contract object,
-        but not tradingClass or multiplier. This is because reqFundamentalData()
-        is used only for stocks and stocks do not have a multiplier and
-        trading class.
+this func can handle conid specified in the Contract object,
+but not tradingClass or multiplier. This is because this func
+is used only for stocks and stocks do not have a multiplier and
+trading class.
 
-        reqId:tickerId - The ID of the data request. Ensures that responses are
-             matched to requests if several requests are in process.
-        contract:Contract - This structure contains a description of the
-            contract for which fundamental data is being requested.
-        reportType:str - One of the following XML reports:
-            ReportSnapshot (company overview)
-            ReportsFinSummary (financial summary)
-            ReportRatios (financial ratios)
-            ReportsFinStatements (financial statements)
-            RESC (analyst estimates)
-            CalendarReport (company calendar)
+	reqId:tickerId - The ID of the data request. Ensures that responses are
+			matched to requests if several requests are in process.
+	contract:Contract - This structure contains a description of the
+		contract for which fundamental data is being requested.
+	reportType:str - One of the following XML reports:
+		ReportSnapshot (company overview)
+		ReportsFinSummary (financial summary)
+		ReportRatios (financial ratios)
+		ReportsFinStatements (financial statements)
+		RESC (analyst estimates)
+		CalendarReport (company calendar)
 */
 func (ic *IbClient) ReqFundamentalData(reqID int64, contract *Contract, reportType string, fundamentalDataOptions []TagValue) {
 
@@ -2337,6 +2430,7 @@ func (ic *IbClient) ReqFundamentalData(reqID int64, contract *Contract, reportTy
 	ic.reqChan <- msg
 }
 
+// CancelFundamentalData cancel fundamental data.
 func (ic *IbClient) CancelFundamentalData(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_FUNDAMENTAL_DATA {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support fundamental data request.")
@@ -2357,6 +2451,7 @@ func (ic *IbClient) CancelFundamentalData(reqID int64) {
    #########################################################################
 */
 
+// ReqNewsProviders request news providers.
 func (ic *IbClient) ReqNewsProviders() {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_NEWS_PROVIDERS {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+" It does not support news providers request.")
@@ -2368,6 +2463,7 @@ func (ic *IbClient) ReqNewsProviders() {
 	ic.reqChan <- msg
 }
 
+// ReqNewsArticle request news article.
 func (ic *IbClient) ReqNewsArticle(reqID int64, providerCode string, articleID string, newsArticleOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_NEWS_ARTICLE {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support news article request.")
@@ -2397,6 +2493,7 @@ func (ic *IbClient) ReqNewsArticle(reqID int64, providerCode string, articleID s
 	ic.reqChan <- msg
 }
 
+// ReqHistoricalNews request historical news.
 func (ic *IbClient) ReqHistoricalNews(reqID int64, contractID int64, providerCode string, startDateTime string, endDateTime string, totalResults int64, historicalNewsOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_HISTORICAL_NEWS {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support historical news request.")
@@ -2435,6 +2532,7 @@ func (ic *IbClient) ReqHistoricalNews(reqID int64, contractID int64, providerCod
    #########################################################################
 */
 
+// QueryDisplayGroups request the display groups in TWS.
 func (ic *IbClient) QueryDisplayGroups(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_LINKING {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support queryDisplayGroups request.")
@@ -2447,10 +2545,12 @@ func (ic *IbClient) QueryDisplayGroups(reqID int64) {
 	ic.reqChan <- msg
 }
 
-/*SubscribeToGroupEvents
+// SubscribeToGroupEvents subcribe the group events.
+/*
+call this func to subcribe the group event which is triggered by TWS
 reqId:int - The unique number associated with the notification.
-        groupId:int - The ID of the group, currently it is a number from 1 to 7.
-            This is the display group subscription request sent by the API to TWS.
+groupId:int - The ID of the group, currently it is a number from 1 to 7.
+	This is the display group subscription request sent by the API to TWS.
 */
 func (ic *IbClient) SubscribeToGroupEvents(reqID int64, groupID int) {
 	if ic.serverVersion < mMIN_SERVER_VER_LINKING {
@@ -2464,15 +2564,17 @@ func (ic *IbClient) SubscribeToGroupEvents(reqID int64, groupID int) {
 	ic.reqChan <- msg
 }
 
-/*UpdateDisplayGroup
-reqId:int - The requestId specified in subscribeToGroupEvents().
-        contractInfo:str - The encoded value that uniquely represents the
-            contract in IB. Possible values include:
+// UpdateDisplayGroup update the display group in TWS.
+/*
+call this func to change the display group in TWS.
+	reqId:int - The requestId specified in subscribeToGroupEvents().
+	contractInfo:string - The encoded value that uniquely represents the
+		contract in IB. Possible values include:
 
-            none = empty selection
-            contractID@exchange - any non-combination contract.
-                Examples: 8314@SMART for IBM SMART; 8314@ARCA for IBM @ARCA.
-            combo = if any combo is selected.
+		none = empty selection
+		contractID@exchange - any non-combination contract.
+			Examples: 8314@SMART for IBM SMART; 8314@ARCA for IBM @ARCA.
+		combo = if any combo is selected.
 */
 func (ic *IbClient) UpdateDisplayGroup(reqID int64, contractInfo string) {
 	if ic.serverVersion < mMIN_SERVER_VER_LINKING {
@@ -2486,6 +2588,7 @@ func (ic *IbClient) UpdateDisplayGroup(reqID int64, contractInfo string) {
 	ic.reqChan <- msg
 }
 
+// UnsubscribeFromGroupEvents unsubcribe the display group events.
 func (ic *IbClient) UnsubscribeFromGroupEvents(reqID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_LINKING {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support unsubscribeFromGroupEvents request.")
@@ -2498,9 +2601,10 @@ func (ic *IbClient) UnsubscribeFromGroupEvents(reqID int64) {
 	ic.reqChan <- msg
 }
 
-/*VerifyRequest
+// VerifyRequest is just for IB's internal use.
+/*
 For IB's internal purpose. Allows to provide means of verification
-        between the TWS and third party programs.
+between the TWS and third party programs.
 */
 func (ic *IbClient) VerifyRequest(apiName string, apiVersion string) {
 	if ic.serverVersion < mMIN_SERVER_VER_LINKING {
@@ -2520,9 +2624,10 @@ func (ic *IbClient) VerifyRequest(apiName string, apiVersion string) {
 	ic.reqChan <- msg
 }
 
-/*VerifyMessage
+// VerifyMessage is just for IB's internal use.
+/*
 For IB's internal purpose. Allows to provide means of verification
-        between the TWS and third party programs.
+between the TWS and third party programs.
 */
 func (ic *IbClient) VerifyMessage(apiData string) {
 	if ic.serverVersion < mMIN_SERVER_VER_LINKING {
@@ -2536,9 +2641,10 @@ func (ic *IbClient) VerifyMessage(apiData string) {
 	ic.reqChan <- msg
 }
 
-/*VerifyAndAuthRequest
+// VerifyAndAuthRequest is just for IB's internal use.
+/*
 For IB's internal purpose. Allows to provide means of verification
-        between the TWS and third party programs.
+between the TWS and third party programs.
 */
 func (ic *IbClient) VerifyAndAuthRequest(apiName string, apiVersion string, opaqueIsvKey string) {
 	if ic.serverVersion < mMIN_SERVER_VER_LINKING {
@@ -2558,9 +2664,10 @@ func (ic *IbClient) VerifyAndAuthRequest(apiName string, apiVersion string, opaq
 	ic.reqChan <- msg
 }
 
-/*VerifyAndAuthMessage
+// VerifyAndAuthMessage is just for IB's internal use.
+/*
 For IB's internal purpose. Allows to provide means of verification
-        between the TWS and third party programs.
+between the TWS and third party programs.
 */
 func (ic *IbClient) VerifyAndAuthMessage(apiData string, xyzResponse string) {
 	if ic.serverVersion < mMIN_SERVER_VER_LINKING {
@@ -2574,14 +2681,14 @@ func (ic *IbClient) VerifyAndAuthMessage(apiData string, xyzResponse string) {
 	ic.reqChan <- msg
 }
 
-/*ReqSecDefOptParams
-Requests security definition option parameters for viewing a
-        contract's option chain reqId the ID chosen for the request
-        underlyingSymbol futFopExchange The exchange on which the returned
-        options are trading. Can be set to the empty string "" for all
-        exchanges. underlyingSecType The type of the underlying security,
-        i.e. STK underlyingConId the contract ID of the underlying security.
-        Response comes via EWrapper.securityDefinitionOptionParameter()
+// ReqSecDefOptParams request security definition option parameters.
+/*
+call this func for viewing a contract's option chain reqId the ID chosen for the request
+underlyingSymbol futFopExchange The exchange on which the returned
+options are trading. Can be set to the empty string "" for all
+exchanges. underlyingSecType The type of the underlying security,
+i.e. STK underlyingConId the contract ID of the underlying security.
+Response comes via wrapper.SecurityDefinitionOptionParameter()
 */
 func (ic *IbClient) ReqSecDefOptParams(reqID int64, underlyingSymbol string, futFopExchange string, underlyingSecurityType string, underlyingContractID int64) {
 	if ic.serverVersion < mMIN_SERVER_VER_SEC_DEF_OPT_PARAMS_REQ {
@@ -2594,10 +2701,10 @@ func (ic *IbClient) ReqSecDefOptParams(reqID int64, underlyingSymbol string, fut
 	ic.reqChan <- msg
 }
 
-/*ReqSoftDollarTiers
-Requests pre-defined Soft Dollar Tiers. This is only supported for
-        registered professional advisors and hedge and mutual funds who have
-        configured Soft Dollar Tiers in Account Management.
+// ReqSoftDollarTiers request pre-defined Soft Dollar Tiers.
+/*
+This is only supported for registered professional advisors and hedge and mutual funds
+who have configured Soft Dollar Tiers in Account Management.
 */
 func (ic *IbClient) ReqSoftDollarTiers(reqID int64) {
 	msg := makeMsgBytes(mREQ_SOFT_DOLLAR_TIERS, reqID)
@@ -2605,6 +2712,7 @@ func (ic *IbClient) ReqSoftDollarTiers(reqID int64) {
 	ic.reqChan <- msg
 }
 
+// ReqFamilyCodes request family codes.
 func (ic *IbClient) ReqFamilyCodes() {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_FAMILY_CODES {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support family codes request.")
@@ -2616,6 +2724,7 @@ func (ic *IbClient) ReqFamilyCodes() {
 	ic.reqChan <- msg
 }
 
+// ReqMatchingSymbols request matching symbols.
 func (ic *IbClient) ReqMatchingSymbols(reqID int64, pattern string) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_MATCHING_SYMBOLS {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support matching symbols request.")
@@ -2627,7 +2736,7 @@ func (ic *IbClient) ReqMatchingSymbols(reqID int64, pattern string) {
 	ic.reqChan <- msg
 }
 
-//ReqCurrentTime Asks the current system time on the server side.
+// ReqCurrentTime request the current system time on the server side.
 func (ic *IbClient) ReqCurrentTime() {
 	v := 1
 	msg := makeMsgBytes(mREQ_CURRENT_TIME, v)
@@ -2635,11 +2744,11 @@ func (ic *IbClient) ReqCurrentTime() {
 	ic.reqChan <- msg
 }
 
-/*ReqCompletedOrders
-Call this function to request the completed orders. If apiOnly parameter
-is true, then only completed orders placed from API are requested.
-Each completed order will be fed back through the
-completedOrder() function on the EWrapper.*/
+// ReqCompletedOrders request the completed orders
+/*
+If apiOnly parameter is true, then only completed orders placed from API are requested.
+Result will be delivered via wrapper.CompletedOrder().
+*/
 func (ic *IbClient) ReqCompletedOrders(apiOnly bool) {
 	msg := makeMsgBytes(mREQ_COMPLETED_ORDERS, apiOnly)
 
@@ -2647,6 +2756,7 @@ func (ic *IbClient) ReqCompletedOrders(apiOnly bool) {
 }
 
 //--------------------------three major goroutine -----------------------------------------------------
+
 //goRequest will get the req from reqChan and send it to TWS
 func (ic *IbClient) goRequest() {
 	log.Info("Requester START!")
@@ -2771,6 +2881,7 @@ func (ic *IbClient) Run() error {
 	return nil
 }
 
+// LoopUntilDone will call goroutines and block until the client context is done or the client is disconnected.
 func (ic *IbClient) LoopUntilDone(fs ...func()) error {
 	for _, f := range fs {
 		go f()

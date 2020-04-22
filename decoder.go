@@ -16,7 +16,7 @@ const (
 type ibDecoder struct {
 	wrapper       IbWrapper
 	version       Version
-	msgID2process map[IN]func(*msgBuffer)
+	msgID2process map[IN]func(*MsgBuffer)
 	errChan       chan error
 }
 
@@ -24,7 +24,7 @@ func (d *ibDecoder) setVersion(version Version) {
 	d.version = version
 }
 
-func (d *ibDecoder) interpret(msgBuf *msgBuffer) {
+func (d *ibDecoder) interpret(msgBuf *MsgBuffer) {
 	if msgBuf.Len() == 0 {
 		log.Debug("no fields")
 		return
@@ -38,7 +38,7 @@ func (d *ibDecoder) interpret(msgBuf *msgBuffer) {
 		}
 	}()
 
-	log.Debugf("interpret -> msgBuffer: %v", msgBuf.Bytes())
+	log.Debugf("interpret -> MsgBuffer: %v", msgBuf.Bytes())
 
 	// read the msg type
 	MsgID := msgBuf.readInt()
@@ -74,7 +74,7 @@ func (d *ibDecoder) interpret(msgBuf *msgBuffer) {
 // }
 
 func (d *ibDecoder) setmsgID2process() {
-	d.msgID2process = map[IN]func(*msgBuffer){
+	d.msgID2process = map[IN]func(*MsgBuffer){
 		mTICK_PRICE:              d.processTickPriceMsg,
 		mTICK_SIZE:               d.wrapTickSize,
 		mORDER_STATUS:            d.processOrderStatusMsg,
@@ -156,7 +156,7 @@ func (d *ibDecoder) setmsgID2process() {
 
 }
 
-func (d *ibDecoder) wrapTickSize(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapTickSize(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	tickType := msgBuf.readInt()
@@ -164,14 +164,14 @@ func (d *ibDecoder) wrapTickSize(msgBuf *msgBuffer) {
 	d.wrapper.TickSize(reqID, tickType, size)
 }
 
-func (d *ibDecoder) wrapNextValidID(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapNextValidID(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	d.wrapper.NextValidID(reqID)
 
 }
 
-func (d *ibDecoder) wrapManagedAccounts(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapManagedAccounts(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	accNames := msgBuf.readString()
 	accsList := strings.Split(accNames, ",")
@@ -179,7 +179,7 @@ func (d *ibDecoder) wrapManagedAccounts(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) wrapUpdateAccountValue(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapUpdateAccountValue(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	tag := msgBuf.readString()
 	val := msgBuf.readString()
@@ -189,7 +189,7 @@ func (d *ibDecoder) wrapUpdateAccountValue(msgBuf *msgBuffer) {
 	d.wrapper.UpdateAccountValue(tag, val, currency, accName)
 }
 
-func (d *ibDecoder) wrapUpdateAccountTime(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapUpdateAccountTime(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	ts := msgBuf.readString()
 	today := time.Now()
@@ -203,7 +203,7 @@ func (d *ibDecoder) wrapUpdateAccountTime(msgBuf *msgBuffer) {
 	d.wrapper.UpdateAccountTime(t)
 }
 
-func (d *ibDecoder) wrapError(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapError(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	errorCode := msgBuf.readInt()
@@ -212,7 +212,7 @@ func (d *ibDecoder) wrapError(msgBuf *msgBuffer) {
 	d.wrapper.Error(reqID, errorCode, errorString)
 }
 
-func (d *ibDecoder) wrapCurrentTime(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapCurrentTime(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	ts := msgBuf.readInt()
 	t := time.Unix(ts, 0)
@@ -220,7 +220,7 @@ func (d *ibDecoder) wrapCurrentTime(msgBuf *msgBuffer) {
 	d.wrapper.CurrentTime(t)
 }
 
-func (d *ibDecoder) wrapUpdateMktDepth(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapUpdateMktDepth(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	position := msgBuf.readInt()
@@ -233,7 +233,7 @@ func (d *ibDecoder) wrapUpdateMktDepth(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) wrapUpdateMktDepthL2(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapUpdateMktDepthL2(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	position := msgBuf.readInt()
@@ -248,7 +248,7 @@ func (d *ibDecoder) wrapUpdateMktDepthL2(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) wrapUpdateNewsBulletin(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapUpdateNewsBulletin(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	msgID := msgBuf.readInt()
 	msgType := msgBuf.readInt()
@@ -258,7 +258,7 @@ func (d *ibDecoder) wrapUpdateNewsBulletin(msgBuf *msgBuffer) {
 	d.wrapper.UpdateNewsBulletin(msgID, msgType, newsMessage, originExch)
 }
 
-func (d *ibDecoder) wrapReceiveFA(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapReceiveFA(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	faData := msgBuf.readInt()
 	cxml := msgBuf.readString()
@@ -266,14 +266,14 @@ func (d *ibDecoder) wrapReceiveFA(msgBuf *msgBuffer) {
 	d.wrapper.ReceiveFA(faData, cxml)
 }
 
-func (d *ibDecoder) wrapScannerParameters(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapScannerParameters(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	xml := msgBuf.readString()
 
 	d.wrapper.ScannerParameters(xml)
 }
 
-func (d *ibDecoder) wrapTickGeneric(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapTickGeneric(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	tickType := msgBuf.readInt()
@@ -283,7 +283,7 @@ func (d *ibDecoder) wrapTickGeneric(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) wrapTickString(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapTickString(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	tickType := msgBuf.readInt()
@@ -293,7 +293,7 @@ func (d *ibDecoder) wrapTickString(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) wrapTickEFP(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapTickEFP(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	tickType := msgBuf.readInt()
@@ -309,7 +309,7 @@ func (d *ibDecoder) wrapTickEFP(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) wrapMarketDataType(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapMarketDataType(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	marketDataType := msgBuf.readInt()
@@ -317,7 +317,7 @@ func (d *ibDecoder) wrapMarketDataType(msgBuf *msgBuffer) {
 	d.wrapper.MarketDataType(reqID, marketDataType)
 }
 
-func (d *ibDecoder) wrapAccountSummary(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapAccountSummary(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	account := msgBuf.readString()
@@ -328,7 +328,7 @@ func (d *ibDecoder) wrapAccountSummary(msgBuf *msgBuffer) {
 	d.wrapper.AccountSummary(reqID, account, tag, value, currency)
 }
 
-func (d *ibDecoder) wrapVerifyMessageAPI(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapVerifyMessageAPI(msgBuf *MsgBuffer) {
 	// Deprecated Function: keep it temporarily, not know how it works
 	_ = msgBuf.readString()
 	apiData := msgBuf.readString()
@@ -336,7 +336,7 @@ func (d *ibDecoder) wrapVerifyMessageAPI(msgBuf *msgBuffer) {
 	d.wrapper.VerifyMessageAPI(apiData)
 }
 
-func (d *ibDecoder) wrapVerifyCompleted(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapVerifyCompleted(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	isSuccessful := msgBuf.readBool()
 	err := msgBuf.readString()
@@ -344,7 +344,7 @@ func (d *ibDecoder) wrapVerifyCompleted(msgBuf *msgBuffer) {
 	d.wrapper.VerifyCompleted(isSuccessful, err)
 }
 
-func (d *ibDecoder) wrapDisplayGroupList(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapDisplayGroupList(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	groups := msgBuf.readString()
@@ -352,7 +352,7 @@ func (d *ibDecoder) wrapDisplayGroupList(msgBuf *msgBuffer) {
 	d.wrapper.DisplayGroupList(reqID, groups)
 }
 
-func (d *ibDecoder) wrapDisplayGroupUpdated(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapDisplayGroupUpdated(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	contractInfo := msgBuf.readString()
@@ -360,7 +360,7 @@ func (d *ibDecoder) wrapDisplayGroupUpdated(msgBuf *msgBuffer) {
 	d.wrapper.DisplayGroupUpdated(reqID, contractInfo)
 }
 
-func (d *ibDecoder) wrapVerifyAndAuthMessageAPI(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapVerifyAndAuthMessageAPI(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	apiData := msgBuf.readString()
 	xyzChallange := msgBuf.readString()
@@ -368,7 +368,7 @@ func (d *ibDecoder) wrapVerifyAndAuthMessageAPI(msgBuf *msgBuffer) {
 	d.wrapper.VerifyAndAuthMessageAPI(apiData, xyzChallange)
 }
 
-func (d *ibDecoder) wrapVerifyAndAuthCompleted(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapVerifyAndAuthCompleted(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	isSuccessful := msgBuf.readBool()
 	err := msgBuf.readString()
@@ -376,7 +376,7 @@ func (d *ibDecoder) wrapVerifyAndAuthCompleted(msgBuf *msgBuffer) {
 	d.wrapper.VerifyAndAuthCompleted(isSuccessful, err)
 }
 
-func (d *ibDecoder) wrapAccountUpdateMulti(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapAccountUpdateMulti(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	acc := msgBuf.readString()
@@ -388,7 +388,7 @@ func (d *ibDecoder) wrapAccountUpdateMulti(msgBuf *msgBuffer) {
 	d.wrapper.AccountUpdateMulti(reqID, acc, modelCode, tag, val, currency)
 }
 
-func (d *ibDecoder) wrapFundamentalData(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapFundamentalData(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	data := msgBuf.readString()
@@ -398,66 +398,66 @@ func (d *ibDecoder) wrapFundamentalData(msgBuf *msgBuffer) {
 
 //--------------wrap end func ---------------------------------
 
-func (d *ibDecoder) wrapAccountDownloadEnd(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapAccountDownloadEnd(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	accName := msgBuf.readString()
 
 	d.wrapper.AccountDownloadEnd(accName)
 }
 
-func (d *ibDecoder) wrapOpenOrderEnd(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapOpenOrderEnd(msgBuf *MsgBuffer) {
 
 	d.wrapper.OpenOrderEnd()
 }
 
-func (d *ibDecoder) wrapExecDetailsEnd(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapExecDetailsEnd(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 
 	d.wrapper.ExecDetailsEnd(reqID)
 }
 
-func (d *ibDecoder) wrapTickSnapshotEnd(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapTickSnapshotEnd(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 
 	d.wrapper.TickSnapshotEnd(reqID)
 }
 
-func (d *ibDecoder) wrapPositionEnd(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapPositionEnd(msgBuf *MsgBuffer) {
 	// v := decodeInt(f[0])
 
 	d.wrapper.PositionEnd()
 }
 
-func (d *ibDecoder) wrapAccountSummaryEnd(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapAccountSummaryEnd(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 
 	d.wrapper.AccountSummaryEnd(reqID)
 }
 
-func (d *ibDecoder) wrapPositionMultiEnd(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapPositionMultiEnd(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 
 	d.wrapper.PositionMultiEnd(reqID)
 }
 
-func (d *ibDecoder) wrapAccountUpdateMultiEnd(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapAccountUpdateMultiEnd(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 
 	d.wrapper.AccountUpdateMultiEnd(reqID)
 }
 
-func (d *ibDecoder) wrapSecurityDefinitionOptionParameterEndMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapSecurityDefinitionOptionParameterEndMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
 	d.wrapper.SecurityDefinitionOptionParameterEnd(reqID)
 }
 
-func (d *ibDecoder) wrapContractDetailsEnd(msgBuf *msgBuffer) {
+func (d *ibDecoder) wrapContractDetailsEnd(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 
@@ -466,7 +466,7 @@ func (d *ibDecoder) wrapContractDetailsEnd(msgBuf *msgBuffer) {
 
 // ------------------------------------------------------------------
 
-func (d *ibDecoder) processTickPriceMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processTickPriceMsg(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	tickType := msgBuf.readInt()
@@ -511,7 +511,7 @@ func (d *ibDecoder) processTickPriceMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processOrderStatusMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processOrderStatusMsg(msgBuf *MsgBuffer) {
 	if d.version < mMIN_SERVER_VER_MARKET_CAP_PRICE {
 		_ = msgBuf.readString()
 	}
@@ -541,7 +541,7 @@ func (d *ibDecoder) processOrderStatusMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processOpenOrder(msgBuf *msgBuffer) {
+func (d *ibDecoder) processOpenOrder(msgBuf *MsgBuffer) {
 
 	var version int64
 	if d.version < mMIN_SERVER_VER_ORDER_CONTAINER {
@@ -895,7 +895,7 @@ func (d *ibDecoder) processOpenOrder(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processPortfolioValueMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processPortfolioValueMsg(msgBuf *MsgBuffer) {
 	v := msgBuf.readInt()
 
 	c := &Contract{}
@@ -934,7 +934,7 @@ func (d *ibDecoder) processPortfolioValueMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processContractDataMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processContractDataMsg(msgBuf *MsgBuffer) {
 	v := msgBuf.readInt()
 	var reqID int64 = -1
 	if v >= 3 {
@@ -1033,7 +1033,7 @@ func (d *ibDecoder) processContractDataMsg(msgBuf *msgBuffer) {
 	d.wrapper.ContractDetails(reqID, &cd)
 
 }
-func (d *ibDecoder) processBondContractDataMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processBondContractDataMsg(msgBuf *MsgBuffer) {
 	v := msgBuf.readInt()
 
 	var reqID int64 = -1
@@ -1116,7 +1116,7 @@ func (d *ibDecoder) processBondContractDataMsg(msgBuf *msgBuffer) {
 	d.wrapper.BondContractDetails(reqID, c)
 
 }
-func (d *ibDecoder) processScannerDataMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processScannerDataMsg(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	for numofElements := msgBuf.readInt(); numofElements > 0; numofElements-- {
@@ -1147,7 +1147,7 @@ func (d *ibDecoder) processScannerDataMsg(msgBuf *msgBuffer) {
 	d.wrapper.ScannerDataEnd(reqID)
 
 }
-func (d *ibDecoder) processExecutionDataMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processExecutionDataMsg(msgBuf *MsgBuffer) {
 	var v int64
 	if d.version < mMIN_SERVER_VER_LAST_LIQUIDITY {
 		v = msgBuf.readInt()
@@ -1215,7 +1215,7 @@ func (d *ibDecoder) processExecutionDataMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processHistoricalDataMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processHistoricalDataMsg(msgBuf *MsgBuffer) {
 	if d.version < mMIN_SERVER_VER_SYNT_REALTIME_BARS {
 		_ = msgBuf.readString()
 	}
@@ -1244,7 +1244,7 @@ func (d *ibDecoder) processHistoricalDataMsg(msgBuf *msgBuffer) {
 	d.wrapper.HistoricalDataEnd(reqID, startDatestr, endDateStr)
 
 }
-func (d *ibDecoder) processHistoricalDataUpdateMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processHistoricalDataUpdateMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	bar := &BarData{}
 	bar.BarCount = msgBuf.readInt()
@@ -1259,7 +1259,7 @@ func (d *ibDecoder) processHistoricalDataUpdateMsg(msgBuf *msgBuffer) {
 	d.wrapper.HistoricalDataUpdate(reqID, bar)
 
 }
-func (d *ibDecoder) processRealTimeBarMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processRealTimeBarMsg(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 
@@ -1276,7 +1276,7 @@ func (d *ibDecoder) processRealTimeBarMsg(msgBuf *msgBuffer) {
 	d.wrapper.RealtimeBar(reqID, rtb.Time, rtb.Open, rtb.High, rtb.Low, rtb.Close, rtb.Volume, rtb.Wap, rtb.Count)
 }
 
-func (d *ibDecoder) processTickOptionComputationMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processTickOptionComputationMsg(msgBuf *MsgBuffer) {
 	optPrice := UNSETFLOAT
 	pvDividend := UNSETFLOAT
 	gamma := UNSETFLOAT
@@ -1334,7 +1334,7 @@ func (d *ibDecoder) processTickOptionComputationMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processDeltaNeutralValidationMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processDeltaNeutralValidationMsg(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	deltaNeutralContract := DeltaNeutralContract{}
@@ -1347,10 +1347,10 @@ func (d *ibDecoder) processDeltaNeutralValidationMsg(msgBuf *msgBuffer) {
 
 }
 
-// func (d *ibDecoder) processMarketDataTypeMsg(msgBuf *msgBuffer) {
+// func (d *ibDecoder) processMarketDataTypeMsg(msgBuf *MsgBuffer) {
 
 // }
-func (d *ibDecoder) processCommissionReportMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processCommissionReportMsg(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	cr := CommissionReport{}
 	cr.ExecId = msgBuf.readString()
@@ -1364,7 +1364,7 @@ func (d *ibDecoder) processCommissionReportMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processPositionDataMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processPositionDataMsg(msgBuf *MsgBuffer) {
 	v := msgBuf.readInt()
 	acc := msgBuf.readString()
 
@@ -1400,7 +1400,7 @@ func (d *ibDecoder) processPositionDataMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processPositionMultiMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processPositionMultiMsg(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
 	acc := msgBuf.readString()
@@ -1427,7 +1427,7 @@ func (d *ibDecoder) processPositionMultiMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processSecurityDefinitionOptionParameterMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processSecurityDefinitionOptionParameterMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	exchange := msgBuf.readString()
 	underlyingContractID := msgBuf.readInt()
@@ -1450,7 +1450,7 @@ func (d *ibDecoder) processSecurityDefinitionOptionParameterMsg(msgBuf *msgBuffe
 
 }
 
-func (d *ibDecoder) processSoftDollarTiersMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processSoftDollarTiersMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
 	tiers := []SoftDollarTier{}
@@ -1466,7 +1466,7 @@ func (d *ibDecoder) processSoftDollarTiersMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processFamilyCodesMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processFamilyCodesMsg(msgBuf *MsgBuffer) {
 	familyCodes := []FamilyCode{} // TODO: pre set the cap
 
 	for fcCount := msgBuf.readInt(); fcCount > 0; fcCount-- {
@@ -1480,7 +1480,7 @@ func (d *ibDecoder) processFamilyCodesMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processSymbolSamplesMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processSymbolSamplesMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	contractDescriptions := []ContractDescription{} // TODO: pre set the cap
 	for cdCount := msgBuf.readInt(); cdCount > 0; cdCount-- {
@@ -1504,7 +1504,7 @@ func (d *ibDecoder) processSymbolSamplesMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processSmartComponents(msgBuf *msgBuffer) {
+func (d *ibDecoder) processSmartComponents(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
 	smartComponents := []SmartComponent{}
@@ -1521,7 +1521,7 @@ func (d *ibDecoder) processSmartComponents(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processTickReqParams(msgBuf *msgBuffer) {
+func (d *ibDecoder) processTickReqParams(msgBuf *MsgBuffer) {
 	tickerID := msgBuf.readInt()
 	minTick := msgBuf.readFloat()
 	bboExchange := msgBuf.readString()
@@ -1530,7 +1530,7 @@ func (d *ibDecoder) processTickReqParams(msgBuf *msgBuffer) {
 	d.wrapper.TickReqParams(tickerID, minTick, bboExchange, snapshotPermissions)
 }
 
-func (d *ibDecoder) processMktDepthExchanges(msgBuf *msgBuffer) {
+func (d *ibDecoder) processMktDepthExchanges(msgBuf *MsgBuffer) {
 	depthMktDataDescriptions := []DepthMktDataDescription{} // TODO: pre set the cap
 	for descCount := msgBuf.readInt(); descCount > 0; descCount-- {
 		desc := DepthMktDataDescription{}
@@ -1550,14 +1550,14 @@ func (d *ibDecoder) processMktDepthExchanges(msgBuf *msgBuffer) {
 	d.wrapper.MktDepthExchanges(depthMktDataDescriptions)
 }
 
-func (d *ibDecoder) processHeadTimestamp(msgBuf *msgBuffer) {
+func (d *ibDecoder) processHeadTimestamp(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	headTimestamp := msgBuf.readString()
 
 	d.wrapper.HeadTimestamp(reqID, headTimestamp)
 }
 
-func (d *ibDecoder) processTickNews(msgBuf *msgBuffer) {
+func (d *ibDecoder) processTickNews(msgBuf *MsgBuffer) {
 	tickerID := msgBuf.readInt()
 	timeStamp := msgBuf.readInt()
 	providerCode := msgBuf.readString()
@@ -1568,7 +1568,7 @@ func (d *ibDecoder) processTickNews(msgBuf *msgBuffer) {
 	d.wrapper.TickNews(tickerID, timeStamp, providerCode, articleID, headline, extraData)
 }
 
-func (d *ibDecoder) processNewsProviders(msgBuf *msgBuffer) {
+func (d *ibDecoder) processNewsProviders(msgBuf *MsgBuffer) {
 	newsProviders := []NewsProvider{} // TODO: pre set the cap
 	for npCount := msgBuf.readInt(); npCount > 0; npCount-- {
 		provider := NewsProvider{}
@@ -1580,7 +1580,7 @@ func (d *ibDecoder) processNewsProviders(msgBuf *msgBuffer) {
 	d.wrapper.NewsProviders(newsProviders)
 }
 
-func (d *ibDecoder) processNewsArticle(msgBuf *msgBuffer) {
+func (d *ibDecoder) processNewsArticle(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	articleType := msgBuf.readInt()
 	articleText := msgBuf.readString()
@@ -1588,7 +1588,7 @@ func (d *ibDecoder) processNewsArticle(msgBuf *msgBuffer) {
 	d.wrapper.NewsArticle(reqID, articleType, articleText)
 }
 
-func (d *ibDecoder) processHistoricalNews(msgBuf *msgBuffer) {
+func (d *ibDecoder) processHistoricalNews(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	time := msgBuf.readString()
 	providerCode := msgBuf.readString()
@@ -1598,14 +1598,14 @@ func (d *ibDecoder) processHistoricalNews(msgBuf *msgBuffer) {
 	d.wrapper.HistoricalNews(reqID, time, providerCode, articleID, headline)
 }
 
-func (d *ibDecoder) processHistoricalNewsEnd(msgBuf *msgBuffer) {
+func (d *ibDecoder) processHistoricalNewsEnd(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	hasMore := msgBuf.readBool()
 
 	d.wrapper.HistoricalNewsEnd(reqID, hasMore)
 }
 
-func (d *ibDecoder) processHistogramData(msgBuf *msgBuffer) {
+func (d *ibDecoder) processHistogramData(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
 	histogram := []HistogramData{} // TODO: pre set the cap
@@ -1619,7 +1619,7 @@ func (d *ibDecoder) processHistogramData(msgBuf *msgBuffer) {
 	d.wrapper.HistogramData(reqID, histogram)
 }
 
-func (d *ibDecoder) processRerouteMktDataReq(msgBuf *msgBuffer) {
+func (d *ibDecoder) processRerouteMktDataReq(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	contractID := msgBuf.readInt()
 	exchange := msgBuf.readString()
@@ -1627,7 +1627,7 @@ func (d *ibDecoder) processRerouteMktDataReq(msgBuf *msgBuffer) {
 	d.wrapper.RerouteMktDataReq(reqID, contractID, exchange)
 }
 
-func (d *ibDecoder) processRerouteMktDepthReq(msgBuf *msgBuffer) {
+func (d *ibDecoder) processRerouteMktDepthReq(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	contractID := msgBuf.readInt()
 	exchange := msgBuf.readString()
@@ -1635,7 +1635,7 @@ func (d *ibDecoder) processRerouteMktDepthReq(msgBuf *msgBuffer) {
 	d.wrapper.RerouteMktDepthReq(reqID, contractID, exchange)
 }
 
-func (d *ibDecoder) processMarketRuleMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processMarketRuleMsg(msgBuf *MsgBuffer) {
 	marketRuleID := msgBuf.readInt()
 
 	priceIncrements := []PriceIncrement{}
@@ -1649,7 +1649,7 @@ func (d *ibDecoder) processMarketRuleMsg(msgBuf *msgBuffer) {
 	d.wrapper.MarketRule(marketRuleID, priceIncrements)
 }
 
-func (d *ibDecoder) processPnLMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processPnLMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	dailyPnL := msgBuf.readFloat()
 	var unrealizedPnL float64
@@ -1666,7 +1666,7 @@ func (d *ibDecoder) processPnLMsg(msgBuf *msgBuffer) {
 	d.wrapper.Pnl(reqID, dailyPnL, unrealizedPnL, realizedPnL)
 
 }
-func (d *ibDecoder) processPnLSingleMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processPnLSingleMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	position := msgBuf.readInt()
 	dailyPnL := msgBuf.readFloat()
@@ -1685,7 +1685,7 @@ func (d *ibDecoder) processPnLSingleMsg(msgBuf *msgBuffer) {
 
 	d.wrapper.PnlSingle(reqID, position, dailyPnL, unrealizedPnL, realizedPnL, value)
 }
-func (d *ibDecoder) processHistoricalTicks(msgBuf *msgBuffer) {
+func (d *ibDecoder) processHistoricalTicks(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
 	ticks := []HistoricalTick{}
@@ -1703,7 +1703,7 @@ func (d *ibDecoder) processHistoricalTicks(msgBuf *msgBuffer) {
 
 	d.wrapper.HistoricalTicks(reqID, ticks, done)
 }
-func (d *ibDecoder) processHistoricalTicksBidAsk(msgBuf *msgBuffer) {
+func (d *ibDecoder) processHistoricalTicksBidAsk(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
 	ticks := []HistoricalTickBidAsk{}
@@ -1729,7 +1729,7 @@ func (d *ibDecoder) processHistoricalTicksBidAsk(msgBuf *msgBuffer) {
 
 	d.wrapper.HistoricalTicksBidAsk(reqID, ticks, done)
 }
-func (d *ibDecoder) processHistoricalTicksLast(msgBuf *msgBuffer) {
+func (d *ibDecoder) processHistoricalTicksLast(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
 	ticks := []HistoricalTickLast{}
@@ -1755,7 +1755,7 @@ func (d *ibDecoder) processHistoricalTicksLast(msgBuf *msgBuffer) {
 
 	d.wrapper.HistoricalTicksLast(reqID, ticks, done)
 }
-func (d *ibDecoder) processTickByTickMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processTickByTickMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	tickType := msgBuf.readInt()
 	time := msgBuf.readInt()
@@ -1795,7 +1795,7 @@ func (d *ibDecoder) processTickByTickMsg(msgBuf *msgBuffer) {
 	}
 }
 
-func (d *ibDecoder) processOrderBoundMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processOrderBoundMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 	apiClientID := msgBuf.readInt()
 	apiOrderID := msgBuf.readInt()
@@ -1804,7 +1804,7 @@ func (d *ibDecoder) processOrderBoundMsg(msgBuf *msgBuffer) {
 
 }
 
-func (d *ibDecoder) processMarketDepthL2Msg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processMarketDepthL2Msg(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	_ = msgBuf.readInt()
 	reqID := msgBuf.readInt()
@@ -1824,7 +1824,7 @@ func (d *ibDecoder) processMarketDepthL2Msg(msgBuf *msgBuffer) {
 	d.wrapper.UpdateMktDepthL2(reqID, position, marketMaker, operation, side, price, size, isSmartDepth)
 }
 
-func (d *ibDecoder) processCompletedOrderMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 	o := &Order{}
 	c := &Contract{}
 	orderState := &OrderState{}
@@ -2125,6 +2125,6 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *msgBuffer) {
 
 // ----------------------------------------------------
 
-func (d *ibDecoder) processCompletedOrdersEndMsg(msgBuf *msgBuffer) {
+func (d *ibDecoder) processCompletedOrdersEndMsg(msgBuf *MsgBuffer) {
 	d.wrapper.CompletedOrdersEnd()
 }

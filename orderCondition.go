@@ -11,7 +11,7 @@ import (
 type OrderConditioner interface {
 	CondType() int64
 	setCondType(condType int64)
-	decode(*msgBuffer)
+	decode(*MsgBuffer)
 	toFields() []interface{}
 }
 
@@ -27,7 +27,7 @@ type OrderCondition struct {
 	// PercentChange = 7
 }
 
-func (oc OrderCondition) decode(msgBuf *msgBuffer) {
+func (oc OrderCondition) decode(msgBuf *MsgBuffer) {
 	connector := msgBuf.readString()
 	oc.IsConjunctionConnection = connector == "a"
 }
@@ -54,7 +54,7 @@ type ExecutionCondition struct {
 	Symbol   string
 }
 
-func (ec ExecutionCondition) decode(msgBuf *msgBuffer) { // 4 fields
+func (ec ExecutionCondition) decode(msgBuf *MsgBuffer) { // 4 fields
 	ec.OrderCondition.decode(msgBuf)
 	ec.SecType = msgBuf.readString()
 	ec.Exchange = msgBuf.readString()
@@ -70,7 +70,7 @@ type OperatorCondition struct {
 	IsMore bool
 }
 
-func (oc OperatorCondition) decode(msgBuf *msgBuffer) { // 2 fields
+func (oc OperatorCondition) decode(msgBuf *MsgBuffer) { // 2 fields
 	oc.OrderCondition.decode(msgBuf)
 	oc.IsMore = msgBuf.readBool()
 }
@@ -84,7 +84,7 @@ type MarginCondition struct {
 	Percent float64
 }
 
-func (mc MarginCondition) decode(msgBuf *msgBuffer) { // 3 fields
+func (mc MarginCondition) decode(msgBuf *MsgBuffer) { // 3 fields
 	mc.OperatorCondition.decode(msgBuf)
 	mc.Percent = msgBuf.readFloat()
 }
@@ -99,7 +99,7 @@ type ContractCondition struct {
 	Exchange string
 }
 
-func (cc ContractCondition) decode(msgBuf *msgBuffer) { // 4 fields
+func (cc ContractCondition) decode(msgBuf *MsgBuffer) { // 4 fields
 	cc.OperatorCondition.decode(msgBuf)
 	cc.ConID = msgBuf.readInt()
 	cc.Exchange = msgBuf.readString()
@@ -114,7 +114,7 @@ type TimeCondition struct {
 	Time string
 }
 
-func (tc TimeCondition) decode(msgBuf *msgBuffer) { // 3 fields
+func (tc TimeCondition) decode(msgBuf *MsgBuffer) { // 3 fields
 	tc.OperatorCondition.decode(msgBuf)
 	// tc.Time = decodeTime(fields[2], "20060102")
 	tc.Time = msgBuf.readString()
@@ -130,7 +130,7 @@ type PriceCondition struct {
 	TriggerMethod int64
 }
 
-func (pc PriceCondition) decode(msgBuf *msgBuffer) { // 6 fields
+func (pc PriceCondition) decode(msgBuf *MsgBuffer) { // 6 fields
 	pc.ContractCondition.decode(msgBuf)
 	pc.Price = msgBuf.readFloat()
 	pc.TriggerMethod = msgBuf.readInt()
@@ -145,7 +145,7 @@ type PercentChangeCondition struct {
 	ChangePercent float64
 }
 
-func (pcc PercentChangeCondition) decode(msgBuf *msgBuffer) { // 5 fields
+func (pcc PercentChangeCondition) decode(msgBuf *MsgBuffer) { // 5 fields
 	pcc.ContractCondition.decode(msgBuf)
 	pcc.ChangePercent = msgBuf.readFloat()
 }
@@ -159,7 +159,7 @@ type VolumeCondition struct {
 	Volume int64
 }
 
-func (vc VolumeCondition) decode(msgBuf *msgBuffer) { // 5 fields
+func (vc VolumeCondition) decode(msgBuf *MsgBuffer) { // 5 fields
 	vc.ContractCondition.decode(msgBuf)
 	vc.Volume = msgBuf.readInt()
 }

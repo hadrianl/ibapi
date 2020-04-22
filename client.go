@@ -129,8 +129,12 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 func (ic *IbClient) Disconnect() (err error) {
 	defer ic.reset()
 	defer func() {
-		err := recover()
-		ic.done <- err.(error)
+		if err := recover(); err != nil {
+			ic.done <- err.(error)
+		} else {
+			ic.done <- nil
+		}
+
 	}()
 	defer log.Info("Disconnected!")
 
@@ -2887,12 +2891,18 @@ func (ic *IbClient) LoopUntilDone(fs ...func()) error {
 		go f()
 	}
 
+	go func() {
+		select {
+		case <-ic.ctx.Done():
+			ic.Disconnect()
+		}
+	}()
+
 	select {
-	case <-ic.ctx.Done():
-		return ic.ctx.Err()
 	case err := <-ic.done:
 		return err
 	}
+
 }
 
 // func (ic *IbClient) RunWithContext() error {

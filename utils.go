@@ -25,8 +25,6 @@ const (
 	MAX_MSG_LEN int = 0xFFFFFF
 )
 
-var emptyField []byte = []byte{}
-
 func init() {
 	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02T15:04:05.000000000Z07:00", FullTimestamp: true})
 }
@@ -254,6 +252,7 @@ func InitDefault(o interface{}) {
 	}
 }
 
+// MsgBuffer is the buffer that contains a whole msg
 type MsgBuffer struct {
 	*bytes.Buffer
 	bs  []byte
@@ -268,7 +267,7 @@ func (m *MsgBuffer) readInt() int64 {
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
-	if bytes.Equal(m.bs, emptyField) {
+	if bytes.Equal(m.bs, nil) {
 		return 0
 	}
 
@@ -288,7 +287,7 @@ func (m *MsgBuffer) readIntCheckUnset() int64 {
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
-	if bytes.Equal(m.bs, emptyField) {
+	if bytes.Equal(m.bs, nil) {
 		return UNSETINT
 	}
 
@@ -308,7 +307,7 @@ func (m *MsgBuffer) readFloat() float64 {
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
-	if bytes.Equal(m.bs, emptyField) {
+	if bytes.Equal(m.bs, nil) {
 		return 0.0
 	}
 
@@ -328,7 +327,7 @@ func (m *MsgBuffer) readFloatCheckUnset() float64 {
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
-	if bytes.Equal(m.bs, emptyField) {
+	if bytes.Equal(m.bs, nil) {
 		return UNSETFLOAT
 	}
 
@@ -348,7 +347,7 @@ func (m *MsgBuffer) readBool() bool {
 
 	m.bs = m.bs[:len(m.bs)-1]
 
-	if bytes.Equal(m.bs, []byte{'0'}) || bytes.Equal(m.bs, emptyField) {
+	if bytes.Equal(m.bs, []byte{'0'}) || bytes.Equal(m.bs, nil) {
 		return false
 	}
 	return true
@@ -363,13 +362,15 @@ func (m *MsgBuffer) readString() string {
 	return string(m.bs[:len(m.bs)-1])
 }
 
+// NewMsgBuffer create a new MsgBuffer
 func NewMsgBuffer(bs []byte) *MsgBuffer {
 	return &MsgBuffer{
 		bytes.NewBuffer(bs),
-		bs,
+		nil,
 		nil}
 }
 
+// Reset reset buffer, []byte, err
 func (m *MsgBuffer) Reset() {
 	m.Buffer.Reset()
 	m.bs = m.bs[:0]

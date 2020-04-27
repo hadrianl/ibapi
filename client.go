@@ -63,7 +63,8 @@ func NewIbClient(wrapper IbWrapper) *IbClient {
 	return ic
 }
 
-/* ConnState is the State of connection:
+// ConnState is the State of connection.
+/*
 DISCONNECTED
 CONNECTING
 CONNECTED
@@ -2760,6 +2761,11 @@ func (ic *IbClient) ReqCompletedOrders(apiOnly bool) {
 }
 
 //--------------------------three major goroutine -----------------------------------------------------
+/*
+1.goReceive scan a whole msg bytes and put it into msgChan
+2.goDecode gets the msg bytes from msgChan and decode the msg, callback wrapper
+3.goRequest create a select loop to get request from reqChan and send it to tws or ib gateway
+*/
 
 //goRequest will get the req from reqChan and send it to TWS
 func (ic *IbClient) goRequest() {

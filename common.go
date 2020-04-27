@@ -4,10 +4,12 @@ import (
 	"fmt"
 )
 
+// Account
 type Account struct {
 	Name string
 }
 
+// TickAttrib describes additional information for price ticks
 type TickAttrib struct {
 	CanAutoExecute bool
 	PastLimit      bool
@@ -21,9 +23,11 @@ func (t TickAttrib) String() string {
 		t.PreOpen)
 }
 
+// AlgoParams
 type AlgoParams struct {
 }
 
+// TagValue
 type TagValue struct {
 	Tag   string
 	Value string
@@ -33,6 +37,7 @@ func (tv TagValue) String() string {
 	return fmt.Sprintf("TagValue<%s=%s>", tv.Tag, tv.Value)
 }
 
+// OrderComboLeg
 type OrderComboLeg struct {
 	Price float64 `default:"UNSETFLOAT"`
 }
@@ -42,7 +47,10 @@ func (o OrderComboLeg) String() string {
 }
 
 // ------------ComboLeg--------------------
+// ComboLegOpenClose
 type ComboLegOpenClose int64
+
+// ComboLegShortSaleSlot
 type ComboLegShortSaleSlot int64
 
 const (
@@ -54,6 +62,7 @@ const (
 	ThirdParty                           = 2
 )
 
+// ComboLeg
 type ComboLeg struct {
 	ContractID int64
 	Ratio      int64
@@ -81,6 +90,7 @@ func (c ComboLeg) String() string {
 
 // -----------------------------------------------------
 
+// ExecutionFilter
 type ExecutionFilter struct {
 	ClientID     int64
 	AccountCode  string
@@ -91,6 +101,7 @@ type ExecutionFilter struct {
 	Side         string
 }
 
+// BarData
 type BarData struct {
 	Date     string
 	Open     float64
@@ -114,6 +125,7 @@ func (b BarData) String() string {
 		b.BarCount)
 }
 
+// RealTimeBar
 type RealTimeBar struct {
 	Time    int64
 	endTime int64
@@ -138,6 +150,7 @@ func (rb RealTimeBar) String() string {
 		rb.Count)
 }
 
+// CommissionReport
 type CommissionReport struct {
 	ExecId              string
 	Commission          float64
@@ -157,6 +170,7 @@ func (cr CommissionReport) String() string {
 		cr.YieldRedemptionDate)
 }
 
+// FamilyCode
 type FamilyCode struct {
 	AccountID  string
 	FamilyCode string
@@ -168,6 +182,7 @@ func (f FamilyCode) String() string {
 		f.FamilyCode)
 }
 
+// SmartComponent
 type SmartComponent struct {
 	BitNumber      int64
 	Exchange       string
@@ -181,6 +196,7 @@ func (s SmartComponent) String() string {
 		s.ExchangeLetter)
 }
 
+// DepthMktDataDescription
 type DepthMktDataDescription struct {
 	Exchange        string
 	SecurityType    string
@@ -189,6 +205,7 @@ type DepthMktDataDescription struct {
 	AggGroup        int64 `default:"UNSETINT"`
 }
 
+// DepthMktDataDescription
 func (d DepthMktDataDescription) String() string {
 	aggGroup := ""
 	if d.AggGroup != UNSETINT {
@@ -203,6 +220,7 @@ func (d DepthMktDataDescription) String() string {
 		aggGroup)
 }
 
+// NewsProvider
 type NewsProvider struct {
 	Code string
 	Name string
@@ -214,6 +232,7 @@ func (np NewsProvider) String() string {
 		np.Name)
 }
 
+// HistogramData
 type HistogramData struct {
 	Price float64
 	Count int64
@@ -225,6 +244,7 @@ func (hgd HistogramData) String() string {
 		hgd.Count)
 }
 
+// PriceIncrement
 type PriceIncrement struct {
 	LowEdge   float64
 	Increment float64
@@ -236,6 +256,8 @@ func (p PriceIncrement) String() string {
 		p.Increment)
 }
 
+// HistoricalTick is the historical tick's description.
+// Used when requesting historical tick data with whatToShow = MIDPOINT
 type HistoricalTick struct {
 	Time  int64
 	Price float64
@@ -249,6 +271,8 @@ func (h HistoricalTick) String() string {
 		h.Size)
 }
 
+// HistoricalTickBidAsk is the historical tick's description.
+// Used when requesting historical tick data with whatToShow = BID_ASK
 type HistoricalTickBidAsk struct {
 	Time             int64
 	TickAttirbBidAsk TickAttribBidAsk
@@ -268,6 +292,7 @@ func (h HistoricalTickBidAsk) String() string {
 		h.SizeAsk)
 }
 
+// TickAttribBidAsk
 type TickAttribBidAsk struct {
 	BidPastLow  bool
 	AskPastHigh bool
@@ -279,6 +304,8 @@ func (t TickAttribBidAsk) String() string {
 		t.AskPastHigh)
 }
 
+// HistoricalTickLast is the historical last tick's description.
+// Used when requesting historical tick data with whatToShow = TRADES
 type HistoricalTickLast struct {
 	Time              int64
 	TickAttribLast    TickAttribLast
@@ -298,6 +325,7 @@ func (h HistoricalTickLast) String() string {
 		h.SpecialConditions)
 }
 
+// TickAttribLast
 type TickAttribLast struct {
 	PastLimit  bool
 	Unreported bool

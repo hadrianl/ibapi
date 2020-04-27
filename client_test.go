@@ -3,6 +3,8 @@ package ibapi
 import (
 	"context"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"runtime"
 	"strings"
 	"testing"
@@ -96,7 +98,7 @@ func TestClientWithContext(t *testing.T) {
 	// log.SetLevel(log.DebugLevel)
 	runtime.GOMAXPROCS(4)
 	var err error
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*30000)
 	ibwrapper := new(Wrapper)
 	ic := NewIbClient(ibwrapper)
 	ic.SetContext(ctx)
@@ -142,6 +144,11 @@ func TestClientWithContext(t *testing.T) {
 		ic.ReqHistoricalData(ic.GetReqID(), &hsi, "", "4800 S", "1 min", "TRADES", false, 1, true, nil)
 	}
 
+	pprofServe := func() {
+		http.ListenAndServe("localhost:6060", nil)
+	}
+
+	go pprofServe()
 	err = ic.LoopUntilDone(f)
 	fmt.Println(err)
 

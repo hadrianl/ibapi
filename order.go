@@ -244,6 +244,7 @@ type OrderState struct {
 	CompletedStatus         string
 }
 
+// SoftDollarTier is a container for storing Soft Dollar Tier information
 type SoftDollarTier struct {
 	Name        string
 	Value       string
@@ -257,6 +258,7 @@ func (s SoftDollarTier) String() string {
 		s.DisplayName)
 }
 
+// NewOrder create a default order
 func NewOrder() *Order {
 	order := &Order{}
 	order.LimitPrice = UNSETFLOAT

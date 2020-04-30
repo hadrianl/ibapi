@@ -2831,13 +2831,13 @@ func (ic *IbClient) goReceive() {
 	default:
 		switch err := ic.scanner.Err(); err {
 		case nil:
-			panic(io.EOF)
+			panic(errors.Wrap(io.EOF, "Scanner Done"))
 		case bufio.ErrTooLong:
 			errBytes := ic.scanner.Bytes()
 			ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, len(errBytes), errBytes))
-			panic(errors.New("Bad Message length"))
+			panic(errors.Wrap(err, BAD_LENGTH.msg))
 		default:
-			panic(err)
+			panic(errors.Wrap(err, "Scanner Error"))
 		}
 	}
 

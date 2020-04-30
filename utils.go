@@ -30,11 +30,11 @@ func init() {
 }
 
 func bytesToTime(b []byte) time.Time {
-	format := "20060102 15:04:05 CST"
+	format := "20060102 15:04:05 China Standard Time"
 	t := string(b)
 	localtime, err := time.ParseInLocation(format, t, time.Local)
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 	return localtime
 }
@@ -77,6 +77,7 @@ func readMsgBytes(reader *bufio.Reader) ([]byte, error) {
 
 }
 
+// scanFields defines how to unpack the buf
 func scanFields(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF {
 		return 0, nil, io.EOF
@@ -149,7 +150,6 @@ func makeMsgBytes(fields ...interface{}) []byte {
 func splitMsgBytes(data []byte) [][]byte {
 	fields := bytes.Split(data, []byte{fieldSplit})
 	return fields[:len(fields)-1]
-
 }
 
 func decodeInt(field []byte) int64 {

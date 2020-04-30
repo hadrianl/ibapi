@@ -248,11 +248,11 @@ comfirmReadyLoop:
 			f := splitMsgBytes(m)
 			MsgID, _ := strconv.ParseInt(string(f[0]), 10, 64)
 
-			msgBuf := NewMsgBuffer(m)
+			// msgBuf := NewMsgBuffer(m)
 			// msgBuf := &msgBuffer{
 			// 	bytes.NewBuffer(m)}
 
-			ic.decoder.interpret(msgBuf)
+			ic.decoder.interpret(m)
 			for i, ID := range comfirmMsgIDs {
 				if MsgID == int64(ID) {
 					comfirmMsgIDs = append(comfirmMsgIDs[:i], comfirmMsgIDs[i+1:]...)
@@ -2862,8 +2862,8 @@ decodeLoop:
 	for {
 		select {
 		case m := <-ic.msgChan:
-			msgBuf := NewMsgBuffer(m) // FIXME: use object pool
-			go ic.decoder.interpret(msgBuf)
+			// msgBuf := NewMsgBuffer(m) // FIXME: use object pool
+			go ic.decoder.interpret(m)
 		case e := <-ic.errChan:
 			log.Error(e)
 		case e := <-ic.decoder.errChan:

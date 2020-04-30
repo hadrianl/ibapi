@@ -24,7 +24,8 @@ func (d *ibDecoder) setVersion(version Version) {
 	d.version = version
 }
 
-func (d *ibDecoder) interpret(msgBuf *MsgBuffer) {
+func (d *ibDecoder) interpret(msgBytes []byte) {
+	msgBuf := NewMsgBuffer(msgBytes)
 	if msgBuf.Len() == 0 {
 		log.Debug("no fields")
 		return

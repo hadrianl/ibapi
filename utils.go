@@ -254,7 +254,7 @@ func InitDefault(o interface{}) {
 
 // MsgBuffer is the buffer that contains a whole msg
 type MsgBuffer struct {
-	*bytes.Buffer
+	bytes.Buffer
 	bs  []byte
 	err error
 }
@@ -365,7 +365,7 @@ func (m *MsgBuffer) readString() string {
 // NewMsgBuffer create a new MsgBuffer
 func NewMsgBuffer(bs []byte) *MsgBuffer {
 	return &MsgBuffer{
-		bytes.NewBuffer(bs),
+		*bytes.NewBuffer(bs),
 		nil,
 		nil}
 }

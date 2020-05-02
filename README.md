@@ -1,6 +1,6 @@
-# Interactive Brokers API - GoLang Version
+# Interactive Brokers API - GoLang Implement
 Interactive Brokers API 9.79
-pure golang, Unofficial version, smilar to the official python version
+pure golang, Unofficial, smilar to the official python Implement
 
 
 ## INSTALL

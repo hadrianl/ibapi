@@ -120,13 +120,15 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 	return nil
 }
 
-/* Disconnect tries to
+// Disconnect disconnect the client
+/*
 1.send terminatedSignal to receiver, decoder and requester
 2.disconnect the connection
 3.wait the 3 goroutine
 4.callback  ConnectionClosed
 5.send the err to done chan
-6.reset the IbClient*/
+6.reset the IbClient
+*/
 func (ic *IbClient) Disconnect() (err error) {
 	defer ic.reset()
 	defer func() {
@@ -248,16 +250,16 @@ comfirmReadyLoop:
 			f := splitMsgBytes(m)
 			MsgID, _ := strconv.ParseInt(string(f[0]), 10, 64)
 
-			// msgBuf := NewMsgBuffer(m)
-			// msgBuf := &msgBuffer{
-			// 	bytes.NewBuffer(m)}
+			go ic.decoder.interpret(m)
 
-			ic.decoder.interpret(m)
+			// check and del the msg ID
 			for i, ID := range comfirmMsgIDs {
 				if MsgID == int64(ID) {
 					comfirmMsgIDs = append(comfirmMsgIDs[:i], comfirmMsgIDs[i+1:]...)
 				}
 			}
+
+			// if all are checked, connect ack
 			if len(comfirmMsgIDs) == 0 {
 				ic.setConnState(CONNECTED)
 				ic.wrapper.ConnectAck()

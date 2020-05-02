@@ -2,7 +2,7 @@ package ibapi
 
 import "fmt"
 
-// Execution is the information of trade detail
+// Execution is the information of an order`s execution
 type Execution struct {
 	ExecID        string
 	Time          string

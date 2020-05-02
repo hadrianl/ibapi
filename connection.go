@@ -11,10 +11,11 @@ import (
 
 // IbConnection wrap the tcp connection with TWS or Gateway
 type IbConnection struct {
-	host         string
-	port         int
-	clientID     int64
-	conn         net.Conn
+	host     string
+	port     int
+	clientID int64
+	// conn         net.Conn
+	conn         *net.TCPConn
 	state        int
 	numBytesSent int
 	numMsgSent   int
@@ -29,13 +30,16 @@ func (ibconn *IbConnection) Write(bs []byte) (int, error) {
 	ibconn.numMsgSent++
 
 	log.WithFields(log.Fields{"func": "write", "count": n}).Debug(bs)
+
 	return n, err
 }
 
 func (ibconn *IbConnection) Read(bs []byte) (int, error) {
 	n, err := ibconn.conn.Read(bs)
+
 	ibconn.numBytesRecv += n
 	ibconn.numMsgRecv++
+
 	log.WithFields(log.Fields{"func": "read", "count": n}).Debug(bs)
 
 	return n, err
@@ -53,6 +57,8 @@ func (ibconn *IbConnection) reset() {
 }
 
 func (ibconn *IbConnection) disconnect() error {
+	log.WithFields(log.Fields{"func": "disconnect"}).
+		Debugf("Sent %v msgs, %v Bytes.Recv %v msgs, %v Bytes.", ibconn.numMsgSent, ibconn.numBytesSent, ibconn.numMsgRecv, ibconn.numBytesRecv)
 	return ibconn.conn.Close()
 }
 

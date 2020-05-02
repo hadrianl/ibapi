@@ -2,7 +2,7 @@ package ibapi
 
 import "fmt"
 
-//Contract is the base struct about the information of specified symbol(identify by ContractID)
+//Contract describes an instrument's definition
 type Contract struct {
 	ContractID      int64
 	Symbol          string
@@ -56,6 +56,7 @@ func (c Contract) String() string {
 	return basicStr
 }
 
+// DeltaNeutralContract is Delta-Neutral Contract
 type DeltaNeutralContract struct {
 	ContractID int64
 	Delta      float64
@@ -121,11 +122,13 @@ func (c ContractDetails) String() string {
 	return fmt.Sprintf("ContractDetails<Contract: %s, MarketName: %s, UnderContractID: %d, LongName: %s>", c.Contract, c.MarketName, c.UnderContractID, c.LongName)
 }
 
+// ContractDescription includes contract and DerivativeSecTypes
 type ContractDescription struct {
 	Contract           Contract
 	DerivativeSecTypes []string
 }
 
+// NewComboLeg create a default comboleg
 func NewComboLeg() ComboLeg {
 	comboLeg := ComboLeg{}
 	comboLeg.ExemptCode = -1

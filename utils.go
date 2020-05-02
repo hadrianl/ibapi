@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"io"
 	"math"
 	"reflect"
 	"strconv"
@@ -13,25 +14,27 @@ import (
 )
 
 const (
-	fieldSplit  byte    = '\x00'
-	UNSETFLOAT  float64 = math.MaxFloat64
-	UNSETINT    int64   = math.MaxInt64
-	NO_VALID_ID int64   = -1
-	MAX_MSG_LEN int     = 0xFFFFFF
+	fieldSplit byte = '\x00'
+	// UNSETFLOAT represent unset value of float64.
+	UNSETFLOAT float64 = math.MaxFloat64
+	// UNSETINT represent unset value of int64.
+	UNSETINT int64 = math.MaxInt64
+	// NO_VALID_ID represent that the callback func of wrapper is not attached to any request.
+	NO_VALID_ID int64 = -1
+	// MAX_MSG_LEN is the max length that receiver could take.
+	MAX_MSG_LEN int = 0xFFFFFF
 )
-
-var emptyField []byte = []byte{}
 
 func init() {
 	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02T15:04:05.000000000Z07:00", FullTimestamp: true})
 }
 
 func bytesToTime(b []byte) time.Time {
-	format := "20060102 15:04:05 CST"
+	format := "20060102 15:04:05 China Standard Time"
 	t := string(b)
 	localtime, err := time.ParseInLocation(format, t, time.Local)
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 	return localtime
 }
@@ -74,8 +77,13 @@ func readMsgBytes(reader *bufio.Reader) ([]byte, error) {
 
 }
 
+// scanFields defines how to unpack the buf
 func scanFields(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if atEOF || len(data) < 4 {
+	if atEOF {
+		return 0, nil, io.EOF
+	}
+
+	if len(data) < 4 {
 		return 0, nil, nil
 	}
 
@@ -142,7 +150,6 @@ func makeMsgBytes(fields ...interface{}) []byte {
 func splitMsgBytes(data []byte) [][]byte {
 	fields := bytes.Split(data, []byte{fieldSplit})
 	return fields[:len(fields)-1]
-
 }
 
 func decodeInt(field []byte) int64 {
@@ -211,7 +218,7 @@ func handleEmpty(d interface{}) string {
 	}
 }
 
-//Default try to init the object with the default tag, that is a common way but not a efficent way
+//InitDefault try to init the object with the default tag, that is a common way but not a efficent way
 func InitDefault(o interface{}) {
 	t := reflect.TypeOf(o).Elem()
 	v := reflect.ValueOf(o).Elem()
@@ -245,13 +252,14 @@ func InitDefault(o interface{}) {
 	}
 }
 
-type msgBuffer struct {
-	*bytes.Buffer
+// MsgBuffer is the buffer that contains a whole msg
+type MsgBuffer struct {
+	bytes.Buffer
 	bs  []byte
 	err error
 }
 
-func (m *msgBuffer) readInt() int64 {
+func (m *MsgBuffer) readInt() int64 {
 	var i int64
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
@@ -259,7 +267,7 @@ func (m *msgBuffer) readInt() int64 {
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
-	if bytes.Equal(m.bs, emptyField) {
+	if bytes.Equal(m.bs, nil) {
 		return 0
 	}
 
@@ -271,7 +279,7 @@ func (m *msgBuffer) readInt() int64 {
 	return i
 }
 
-func (m *msgBuffer) readIntCheckUnset() int64 {
+func (m *MsgBuffer) readIntCheckUnset() int64 {
 	var i int64
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
@@ -279,7 +287,7 @@ func (m *msgBuffer) readIntCheckUnset() int64 {
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
-	if bytes.Equal(m.bs, emptyField) {
+	if bytes.Equal(m.bs, nil) {
 		return UNSETINT
 	}
 
@@ -291,7 +299,7 @@ func (m *msgBuffer) readIntCheckUnset() int64 {
 	return i
 }
 
-func (m *msgBuffer) readFloat() float64 {
+func (m *MsgBuffer) readFloat() float64 {
 	var f float64
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
@@ -299,7 +307,7 @@ func (m *msgBuffer) readFloat() float64 {
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
-	if bytes.Equal(m.bs, emptyField) {
+	if bytes.Equal(m.bs, nil) {
 		return 0.0
 	}
 
@@ -311,7 +319,7 @@ func (m *msgBuffer) readFloat() float64 {
 	return f
 }
 
-func (m *msgBuffer) readFloatCheckUnset() float64 {
+func (m *MsgBuffer) readFloatCheckUnset() float64 {
 	var f float64
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
@@ -319,7 +327,7 @@ func (m *msgBuffer) readFloatCheckUnset() float64 {
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
-	if bytes.Equal(m.bs, emptyField) {
+	if bytes.Equal(m.bs, nil) {
 		return UNSETFLOAT
 	}
 
@@ -331,7 +339,7 @@ func (m *msgBuffer) readFloatCheckUnset() float64 {
 	return f
 }
 
-func (m *msgBuffer) readBool() bool {
+func (m *MsgBuffer) readBool() bool {
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
 		log.Panicf("errDecodeBool: %v", m.err)
@@ -339,13 +347,13 @@ func (m *msgBuffer) readBool() bool {
 
 	m.bs = m.bs[:len(m.bs)-1]
 
-	if bytes.Equal(m.bs, []byte{'0'}) || bytes.Equal(m.bs, emptyField) {
+	if bytes.Equal(m.bs, []byte{'0'}) || bytes.Equal(m.bs, nil) {
 		return false
 	}
 	return true
 }
 
-func (m *msgBuffer) readString() string {
+func (m *MsgBuffer) readString() string {
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
 		log.Panicf("errDecodeString: %v", m.err)
@@ -354,14 +362,16 @@ func (m *msgBuffer) readString() string {
 	return string(m.bs[:len(m.bs)-1])
 }
 
-func NewMsgBuffer(bs []byte) *msgBuffer {
-	return &msgBuffer{
-		bytes.NewBuffer(bs),
-		bs,
+// NewMsgBuffer create a new MsgBuffer
+func NewMsgBuffer(bs []byte) *MsgBuffer {
+	return &MsgBuffer{
+		*bytes.NewBuffer(bs),
+		nil,
 		nil}
 }
 
-func (m *msgBuffer) Reset() {
+// Reset reset buffer, []byte, err
+func (m *MsgBuffer) Reset() {
 	m.Buffer.Reset()
 	m.bs = m.bs[:0]
 	m.err = nil

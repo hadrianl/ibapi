@@ -2,6 +2,7 @@ package ibapi
 
 import "fmt"
 
+// ScanData is the data retureed by IB, which matches the ScannerSubscription
 type ScanData struct {
 	ContractDetails ContractDetails
 	Rank            int64
@@ -21,6 +22,7 @@ func (s ScanData) String() string {
 		s.Legs)
 }
 
+// ScannerSubscription defines a market scanner request
 type ScannerSubscription struct {
 	NumberOfRows             int64 `default:"-1"`
 	Instrument               string
@@ -52,11 +54,13 @@ func (s ScannerSubscription) String() string {
 		s.ScanCode)
 }
 
+// NewScanData create a default ScanData
 func NewScanData(contractDetails ContractDetails, rank int64, distance string, benchmark string, projection string, legsStr string) *ScanData {
 	scanData := &ScanData{contractDetails, rank, distance, benchmark, projection, legsStr}
 	return scanData
 }
 
+// NewScannerSubscription create a default ScannerSubscription
 func NewScannerSubscription() *ScannerSubscription {
 	scannerSubscription := &ScannerSubscription{}
 

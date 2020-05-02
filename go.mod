@@ -2,4 +2,7 @@ module github.com/hadrianl/ibapi
 
 go 1.14
 
-require github.com/sirupsen/logrus v1.4.2
+require (
+	github.com/pkg/errors v0.9.1
+	github.com/sirupsen/logrus v1.5.0
+)

@@ -99,24 +99,26 @@ func scanFields(data []byte, atEOF bool) (advance int, token []byte, err error) 
 }
 
 func field2Bytes(msg interface{}) []byte {
-	var b []byte
+	// var bs []byte
+	bs := make([]byte, 0, 9)
 
-	switch msg.(type) {
+	switch v := msg.(type) {
 
-	case int:
-		b = encodeInt(msg.(int))
 	case int64:
-		b = encodeInt64(msg.(int64))
-	case OUT:
-		b = encodeInt64(int64(msg.(OUT))) // maybe there is a better solution
+		bs = encodeInt64(v)
 	case float64:
-		b = encodeFloat(msg.(float64))
+		bs = encodeFloat64(v)
 	case string:
-		b = encodeString(msg.(string))
+		bs = encodeString(v)
 	case bool:
-		b = encodeBool(msg.(bool))
+		bs = encodeBool(v)
+	case int:
+		bs = encodeInt(v)
+	case OUT:
+		bs = encodeInt64(int64(v)) // maybe there is a better solution
 	case []byte:
-		b = msg.([]byte)
+		bs = v
+
 	// case time.Time:
 	// 	b = encodeTime(msg.(time.Time))
 
@@ -124,7 +126,7 @@ func field2Bytes(msg interface{}) []byte {
 		log.Panicf("errmakeMsgBytes: can't converst the param-> %v", msg)
 	}
 
-	return append(b, '\x00')
+	return append(bs, '\x00')
 }
 
 // makeMsgBytes is a universal way to make the request ,but not an efficient way
@@ -177,7 +179,7 @@ func encodeInt(i int) []byte {
 	return bs
 }
 
-func encodeFloat(f float64) []byte {
+func encodeFloat64(f float64) []byte {
 	bs := []byte(strconv.FormatFloat(f, 'g', 10, 64))
 	return bs
 }
@@ -196,16 +198,14 @@ func encodeBool(b bool) []byte {
 }
 
 func handleEmpty(d interface{}) string {
-	switch d.(type) {
+	switch v := d.(type) {
 	case int64:
-		v := d.(int64)
 		if v == UNSETINT {
 			return ""
 		}
 		return strconv.FormatInt(v, 10)
 
 	case float64:
-		v := d.(float64)
 		if v == UNSETFLOAT {
 			return ""
 		}

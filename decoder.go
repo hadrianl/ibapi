@@ -24,6 +24,10 @@ func (d *ibDecoder) setVersion(version Version) {
 	d.version = version
 }
 
+func (d *ibDecoder) setWrapper(w IbWrapper) {
+	d.wrapper = w
+}
+
 func (d *ibDecoder) interpret(msgBytes []byte) {
 	msgBuf := NewMsgBuffer(msgBytes)
 	if msgBuf.Len() == 0 {

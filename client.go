@@ -35,7 +35,7 @@ type IbClient struct {
 	scanner          *bufio.Scanner
 	writer           *bufio.Writer
 	wrapper          IbWrapper
-	decoder          *ibDecoder
+	decoder          ibDecoder
 	connectOptions   string
 	reqIDSeq         int64
 	reqChan          chan []byte
@@ -90,7 +90,7 @@ func (ic *IbClient) GetReqID() int64 {
 func (ic *IbClient) SetWrapper(wrapper IbWrapper) {
 	ic.wrapper = wrapper
 	log.Infof("Set Wrapper: %v", wrapper)
-	ic.decoder = &ibDecoder{wrapper: ic.wrapper}
+	ic.decoder = ibDecoder{wrapper: ic.wrapper}
 }
 
 // SetContext setup the Connection Context
@@ -169,9 +169,9 @@ func (ic *IbClient) startAPI() error {
 	var startAPI []byte
 	v := 2
 	if ic.serverVersion >= mMIN_SERVER_VER_OPTIONAL_CAPABILITIES {
-		startAPI = makeMsgBytes(int64(mSTART_API), int64(v), ic.clientID, "")
+		startAPI = makeMsgBytes(mSTART_API, v, ic.clientID, "")
 	} else {
-		startAPI = makeMsgBytes(int64(mSTART_API), int64(v), ic.clientID)
+		startAPI = makeMsgBytes(mSTART_API, v, ic.clientID)
 	}
 
 	log.Debug("Start API:", startAPI)
@@ -195,14 +195,16 @@ func (ic *IbClient) HandShake() error {
 	minVer := []byte(strconv.FormatInt(int64(MIN_CLIENT_VER), 10))
 	maxVer := []byte(strconv.FormatInt(int64(MAX_CLIENT_VER), 10))
 
-	connectOptions := []byte("")
+	connectOptions := []byte{}
 	if ic.connectOptions != "" {
 		connectOptions = []byte(" " + ic.connectOptions)
 	}
 
-	clientVersion := bytes.Join([][]byte{[]byte("v"), minVer, []byte(".."), maxVer, connectOptions}, []byte(""))
+	clientVersion := bytes.Join([][]byte{[]byte("v"), minVer, []byte(".."), maxVer, connectOptions}, nil)
 	sizeofCV := make([]byte, 4)
 	binary.BigEndian.PutUint32(sizeofCV, uint32(len(clientVersion)))
+
+	// send head and client version to TWS or Gateway to tell the client version range
 	msg.Write(head)
 	msg.Write(sizeofCV)
 	msg.Write(clientVersion)
@@ -216,13 +218,13 @@ func (ic *IbClient) HandShake() error {
 	}
 
 	log.Debug("Recv Server Init Info...")
-	// if msgBytes, err = readMsgBytes(ic.reader); err != nil {
-	// 	return err
-	// }
+
+	// scan once to get server info
 	if !ic.scanner.Scan() {
 		return ic.scanner.Err()
 	}
 
+	// Init server info
 	msgBytes = ic.scanner.Bytes()
 	serverInfo := splitMsgBytes(msgBytes)
 	v, _ := strconv.Atoi(string(serverInfo[0]))
@@ -233,9 +235,11 @@ func (ic *IbClient) HandShake() error {
 	ic.decoder.setVersion(ic.serverVersion)
 	ic.decoder.errChan = make(chan error, 100)
 	ic.decoder.setmsgID2process()
+
 	log.Info("ServerVersion:", ic.serverVersion)
 	log.Info("ConnectionTime:", ic.connTime)
 
+	// send startAPI to tell server that client is ready
 	if err = ic.startAPI(); err != nil {
 		return err
 	}
@@ -243,6 +247,9 @@ func (ic *IbClient) HandShake() error {
 	go ic.goReceive() // receive the data, make sure client receives the nextValidID and manageAccount which help comfirm the client.
 	comfirmMsgIDs := []IN{mNEXT_VALID_ID, mMANAGED_ACCTS}
 
+	/* comfirmReadyLoop try to receive manage account and vaild id from tws or gateway,
+	in this way, client could make sure no other client with the same clientId was already connected to tws or gateway.
+	*/
 comfirmReadyLoop:
 	for {
 		select {
@@ -2863,12 +2870,11 @@ decodeLoop:
 	for {
 		select {
 		case m := <-ic.msgChan:
-			// msgBuf := NewMsgBuffer(m) // FIXME: use object pool
-			go ic.decoder.interpret(m)
+			ic.decoder.interpret(m)
 		case e := <-ic.errChan:
 			log.Error(e)
 		case e := <-ic.decoder.errChan:
-			go ic.wrapper.Error(NO_VALID_ID, BAD_MESSAGE.code, BAD_MESSAGE.msg+e.Error())
+			ic.wrapper.Error(NO_VALID_ID, BAD_MESSAGE.code, BAD_MESSAGE.msg+e.Error())
 		case <-ic.terminatedSignal:
 			break decodeLoop
 		}

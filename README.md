@@ -7,7 +7,7 @@ pure golang, Unofficial, smilar to the official python Implement
 `go get -u github.com/hadrianl/ibapi`
 
 ## USAGE
-### demo1
+### Demo 1
 ```golang
 import (
     . "github.com/hadrianl/ibapi"
@@ -19,7 +19,7 @@ func main(){
     var err error
     ibwrapper := &Wrapper{}
     ic := NewIbClient(ibwrapper)
-    err = ic.Connect("172.0.0.1", 4002, 0)
+    err = ic.Connect("127.0.0.1", 4002, 0)
     if err != nil {
         log.Panic("Connect failed:", err)
         return
@@ -43,7 +43,7 @@ func main(){
 
 ```
 
-### demo2 with context 
+### Demo 2 with context 
 ```golang
 import (
     . "github.com/hadrianl/ibapi"
@@ -58,7 +58,7 @@ func main(){
     ctx, _ := context.WithTimeout(context.Background(), time.Second*30)
     ic := NewIbClient(ibwrapper)
     ic.SetContext(ctx)
-    err = ic.Connect("172.0.0.1", 4002, 0)
+    err = ic.Connect("127.0.0.1", 4002, 0)
     if err != nil {
         log.Panic("Connect failed:", err)
         return

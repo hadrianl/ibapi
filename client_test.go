@@ -35,29 +35,29 @@ func TestClient(t *testing.T) {
 	ic.Run()
 
 	ic.ReqCurrentTime()
-	// ic.ReqAutoOpenOrders(true)
-	// ic.ReqAccountUpdates(true, "")
-	// ic.ReqExecutions(ic.GetReqID(), ExecutionFilter{})
+	ic.ReqAutoOpenOrders(true)
+	ic.ReqAccountUpdates(true, "")
+	ic.ReqExecutions(ic.GetReqID(), ExecutionFilter{})
 
 	hsi := Contract{ContractID: 415314929, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
-	// ic.ReqHistoricalData(ic.GetReqID(), &hsi, "", "4800 S", "1 min", "TRADES", false, 1, true, nil)
-	// ic.ReqMktDepth(ic.GetReqID(), &hsi1909, 5, true, nil)
-	// ic.ReqContractDetails(ic.GetReqID(), &hsi)
+	ic.ReqHistoricalData(ic.GetReqID(), &hsi, "", "4800 S", "1 min", "TRADES", false, 1, true, nil)
+	ic.ReqMktDepth(ic.GetReqID(), &hsi, 5, true, nil)
+	ic.ReqContractDetails(ic.GetReqID(), &hsi)
 	// ic.ReqAllOpenOrders()
 	// ic.ReqMktData(ic.GetReqID(), &hsi, "", false, false, nil)
 	// ic.ReqPositions()
 	// ic.ReqRealTimeBars(ic.GetReqID(), &hsi1909, 5, "TRADES", false, nil)
 
-	// tags := []string{"AccountType", "NetLiquidation", "TotalCashValue", "SettledCash",
-	// 	"AccruedCash", "BuyingPower", "EquityWithLoanValue",
-	// 	"PreviousEquityWithLoanValue", "GrossPositionValue", "ReqTEquity",
-	// 	"ReqTMargin", "SMA", "InitMarginReq", "MaintMarginReq", "AvailableFunds",
-	// 	"ExcessLiquidity", "Cushion", "FullInitMarginReq", "FullMaintMarginReq",
-	// 	"FullAvailableFunds", "FullExcessLiquidity", "LookAheadNextChange",
-	// 	"LookAheadInitMarginReq", "LookAheadMaintMarginReq",
-	// 	"LookAheadAvailableFunds", "LookAheadExcessLiquidity",
-	// 	"HighestSeverity", "DayTradesRemaining", "Leverage", "$LEDGER:ALL"}
-	// ic.ReqAccountSummary(ic.GetReqID(), "All", strings.Join(tags, ","))
+	tags := []string{"AccountType", "NetLiquidation", "TotalCashValue", "SettledCash",
+		"AccruedCash", "BuyingPower", "EquityWithLoanValue",
+		"PreviousEquityWithLoanValue", "GrossPositionValue", "ReqTEquity",
+		"ReqTMargin", "SMA", "InitMarginReq", "MaintMarginReq", "AvailableFunds",
+		"ExcessLiquidity", "Cushion", "FullInitMarginReq", "FullMaintMarginReq",
+		"FullAvailableFunds", "FullExcessLiquidity", "LookAheadNextChange",
+		"LookAheadInitMarginReq", "LookAheadMaintMarginReq",
+		"LookAheadAvailableFunds", "LookAheadExcessLiquidity",
+		"HighestSeverity", "DayTradesRemaining", "Leverage", "$LEDGER:ALL"}
+	ic.ReqAccountSummary(ic.GetReqID(), "All", strings.Join(tags, ","))
 	// ic.ReqFamilyCodes()
 	// ic.ReqMatchingSymbols(ic.GetReqID(), "HSI")
 	// ic.ReqScannerParameters()

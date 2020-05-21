@@ -2054,7 +2054,7 @@ func (ic *IbClient) ReqHeadTimeStamp(reqID int64, contract *Contract, whatToShow
 		return
 	}
 
-	fields := make([]interface{}, 0, 19)
+	fields := make([]interface{}, 0, 18)
 
 	fields = append(fields,
 		mREQ_HEAD_TIMESTAMP,
@@ -2068,7 +2068,6 @@ func (ic *IbClient) ReqHeadTimeStamp(reqID int64, contract *Contract, whatToShow
 		contract.Multiplier,
 		contract.Exchange,
 		contract.PrimaryExchange,
-		contract.LocalSymbol,
 		contract.Currency,
 		contract.LocalSymbol,
 		contract.TradingClass,

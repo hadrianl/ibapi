@@ -45,7 +45,7 @@ func TestClient(t *testing.T) {
 	ic.ReqContractDetails(ic.GetReqID(), &hsi)
 	// ic.ReqAllOpenOrders()
 	// ic.ReqMktData(ic.GetReqID(), &hsi, "", false, false, nil)
-	// ic.ReqPositions()
+	ic.ReqPositions()
 	// ic.ReqRealTimeBars(ic.GetReqID(), &hsi1909, 5, "TRADES", false, nil)
 
 	tags := []string{"AccountType", "NetLiquidation", "TotalCashValue", "SettledCash",

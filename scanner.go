@@ -54,12 +54,6 @@ func (s ScannerSubscription) String() string {
 		s.ScanCode)
 }
 
-// NewScanData create a default ScanData
-func NewScanData(contractDetails ContractDetails, rank int64, distance string, benchmark string, projection string, legsStr string) *ScanData {
-	scanData := &ScanData{contractDetails, rank, distance, benchmark, projection, legsStr}
-	return scanData
-}
-
 // NewScannerSubscription create a default ScannerSubscription
 func NewScannerSubscription() *ScannerSubscription {
 	scannerSubscription := &ScannerSubscription{}

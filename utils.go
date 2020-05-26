@@ -29,8 +29,7 @@ const (
 var log *zap.Logger
 
 func init() {
-	log, _ = zap.NewProduction()
-	// log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02T15:04:05.000000000Z07:00", FullTimestamp: true})
+	log, _ = zap.NewDevelopment()
 }
 
 func bytesToTime(b []byte) time.Time {

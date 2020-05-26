@@ -29,7 +29,7 @@ func (ibconn *IbConnection) Write(bs []byte) (int, error) {
 	ibconn.numBytesSent += n
 	ibconn.numMsgSent++
 
-	log.Debug("conn write", zap.Int("count", n), zap.Binary("bytes", bs))
+	log.Debug("conn write", zap.Int("nBytes", n))
 
 	return n, err
 }
@@ -40,7 +40,7 @@ func (ibconn *IbConnection) Read(bs []byte) (int, error) {
 	ibconn.numBytesRecv += n
 	ibconn.numMsgRecv++
 
-	log.Debug("conn read", zap.Int("count", n), zap.Binary("bytes", bs))
+	log.Debug("conn read", zap.Int("nBytes", n))
 
 	return n, err
 }

@@ -244,6 +244,19 @@ type OrderState struct {
 	CompletedStatus         string
 }
 
+func (state OrderState) String() string {
+	s := fmt.Sprintf("OrderState<Status: %s, Commission: %.2f%s, CompletedTime: %s, CompletedStatus: %s>",
+		state.Status,
+		state.Commission,
+		state.CommissionCurrency,
+		state.CompletedTime,
+		state.CompletedStatus,
+	)
+
+	return s
+
+}
+
 // SoftDollarTier is a container for storing Soft Dollar Tier information
 type SoftDollarTier struct {
 	Name        string

@@ -4,7 +4,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // IbWrapper contain the funcs to handle the msg from TWS or Gateway
@@ -106,52 +106,60 @@ func (w *Wrapper) GetNextOrderID() (i int64) {
 }
 
 func (w Wrapper) ConnectAck() {
-	log.Printf("<ConnectAck>...")
+	log.Info("<ConnectAck>...")
 }
 
 func (w Wrapper) ConnectionClosed() {
-	log.Printf("<ConnectionClosed>...")
+	log.Info("<ConnectionClosed>...")
 }
 
 func (w *Wrapper) NextValidID(reqID int64) {
 	atomic.StoreInt64(&w.orderID, reqID)
-	log.WithField("reqID", reqID).Printf("<NextValidID>: %v.", reqID)
-
+	log.With(zap.Int64("reqID", reqID)).Info("<NextValidID>")
 }
 
 func (w Wrapper) ManagedAccounts(accountsList []string) {
-	log.Printf("<ManagedAccounts>: %v.", accountsList)
-
+	log.Info("<ManagedAccounts>", zap.Strings("accountList", accountsList))
 }
 
 func (w Wrapper) TickPrice(reqID int64, tickType int64, price float64, attrib TickAttrib) {
-	log.WithField("reqID", reqID).Printf("<TickPrice>: tickType: %v price: %v.", tickType, price)
+	log.With(zap.Int64("reqID", reqID)).Info("<TickPrice>", zap.Int64("tickType", tickType), zap.Float64("price", price))
 }
 
 func (w Wrapper) UpdateAccountTime(accTime time.Time) {
-	log.Printf("<UpdateAccountTime>: %v", accTime)
-
+	log.Info("<UpdateAccountTime>", zap.Time("accountTime", accTime))
 }
 
 func (w Wrapper) UpdateAccountValue(tag string, value string, currency string, account string) {
-	log.WithFields(log.Fields{"account": account, tag: value, "currency": currency}).Print("<UpdateAccountValue>")
-
+	log.Info("<UpdateAccountValue>", zap.String("tag", tag), zap.String("value", value), zap.String("currency", currency), zap.String("account", account))
 }
 
 func (w Wrapper) AccountDownloadEnd(accName string) {
-	log.Printf("<AccountDownloadEnd>: %v", accName)
+	log.Info("<AccountDownloadEnd>", zap.String("accountName", accName))
 }
 
 func (w Wrapper) AccountUpdateMulti(reqID int64, account string, modelCode string, tag string, value string, currency string) {
-	log.WithFields(log.Fields{"reqID": reqID, "account": account, tag: value, "currency": currency, "modelCode": modelCode}).Print("<AccountUpdateMulti>")
+	log.With(zap.Int64("reqID", reqID)).Info("<AccountUpdateMulti>",
+		zap.String("account", account),
+		zap.String("modelCode", modelCode),
+		zap.String("tag", tag),
+		zap.String("value", value),
+		zap.String("curreny", currency),
+	)
 }
 
 func (w Wrapper) AccountUpdateMultiEnd(reqID int64) {
-	log.WithField("reqID", reqID).Print("<AccountUpdateMultiEnd>")
+	log.With(zap.Int64("reqID", reqID)).Info("<AccountUpdateMultiEnd>")
 }
 
 func (w Wrapper) AccountSummary(reqID int64, account string, tag string, value string, currency string) {
-	log.WithFields(log.Fields{"reqID": reqID, "account": account, tag: value, "currency": currency}).Print("<AccountSummary>")
+	log.With(zap.Int64("reqID", reqID)).Info("<AccountSummary>",
+		zap.String("account", account),
+		zap.String("tag", tag),
+		zap.String("value", value),
+		zap.String("curreny", currency),
+	)
+
 }
 
 func (w Wrapper) AccountSummaryEnd(reqID int64) {

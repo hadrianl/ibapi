@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 const (
@@ -75,9 +75,9 @@ func (ic *IbClient) ConnState() int {
 }
 
 func (ic *IbClient) setConnState(connState int) {
-	OldConnState := ic.conn.state
+	preState := ic.conn.state
 	ic.conn.state = connState
-	log.Debugf("ConnState: %v -> %v", OldConnState, connState)
+	log.Info("connection state is changed", zap.Int("previous", preState), zap.Int("current", connState))
 }
 
 // GetReqID before request data or place order
@@ -89,7 +89,7 @@ func (ic *IbClient) GetReqID() int64 {
 // SetWrapper setup the Wrapper
 func (ic *IbClient) SetWrapper(wrapper IbWrapper) {
 	ic.wrapper = wrapper
-	log.Infof("Set Wrapper: %v", wrapper)
+	log.Info("set wrapper", zap.Reflect("wrapper", wrapper))
 	ic.decoder = ibDecoder{wrapper: ic.wrapper}
 }
 
@@ -109,7 +109,7 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 	ic.host = host
 	ic.port = port
 	ic.clientID = clientID
-	log.Debugf("Connecting to %s:%d clientid:%d", host, port, clientID)
+	log.Debug("connect to client", zap.String("host", host), zap.Int("port", port), zap.Int64("clientID", clientID))
 	ic.setConnState(CONNECTING)
 	if err := ic.conn.connect(host, port); err != nil {
 		ic.wrapper.Error(NO_VALID_ID, CONNECT_FAIL.code, CONNECT_FAIL.msg)
@@ -174,7 +174,7 @@ func (ic *IbClient) startAPI() error {
 		startAPI = makeMsgBytes(mSTART_API, v, ic.clientID)
 	}
 
-	log.Debug("Start API:", startAPI)
+	log.Debug("start API", zap.Binary("bytes", startAPI))
 	if _, err := ic.writer.Write(startAPI); err != nil {
 		return err
 	}
@@ -236,8 +236,8 @@ func (ic *IbClient) HandShake() error {
 	ic.decoder.errChan = make(chan error, 100)
 	ic.decoder.setmsgID2process()
 
-	log.Info("ServerVersion:", ic.serverVersion)
-	log.Info("ConnectionTime:", ic.connTime)
+	log.Info("init info", zap.Int("serverVersion", ic.serverVersion))
+	log.Info("init info", zap.Time("connectionTime", ic.connTime))
 
 	// send startAPI to tell server that client is ready
 	if err = ic.startAPI(); err != nil {
@@ -2780,7 +2780,7 @@ func (ic *IbClient) goRequest() {
 	log.Info("Requester START!")
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorf("Requester got unexpected error: %v... ", err)
+			log.Error("requester got unexpected error", zap.Error(err.(error)))
 			ic.err = err.(error)
 			ic.Disconnect()
 		}
@@ -2801,8 +2801,8 @@ requestLoop:
 
 			nn, err := ic.writer.Write(req)
 			err = ic.writer.Flush()
-			log.Debug(nn, req)
 			if err != nil {
+				log.Error("write req error", zap.Int("nbytes", nn), zap.Binary("reqMsg", req), zap.Error(err))
 				ic.writer.Reset(ic.conn)
 				ic.errChan <- err
 			}
@@ -2819,7 +2819,7 @@ func (ic *IbClient) goReceive() {
 	log.Info("Receiver START!")
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorf("Receiver got unexpected error: %v... ", err)
+			log.Error("receiver got unexpected error", zap.Error(err.(error)))
 			ic.err = err.(error)
 			ic.Disconnect()
 		}
@@ -2856,7 +2856,7 @@ func (ic *IbClient) goDecode() {
 	log.Info("Decoder START!")
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorf("Decoder got unexpected error: %v... ", err)
+			log.Error("decoder got unexpected error", zap.Error(err.(error)))
 			ic.err = err.(error)
 			ic.Disconnect()
 		}
@@ -2872,7 +2872,7 @@ decodeLoop:
 		case m := <-ic.msgChan:
 			ic.decoder.interpret(m)
 		case e := <-ic.errChan:
-			log.Error(e)
+			log.Error("got client error in decode loop", zap.Error(e))
 		case e := <-ic.decoder.errChan:
 			ic.wrapper.Error(NO_VALID_ID, BAD_MESSAGE.code, BAD_MESSAGE.msg+e.Error())
 		case <-ic.terminatedSignal:

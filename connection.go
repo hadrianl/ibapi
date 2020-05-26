@@ -6,7 +6,7 @@ import (
 	"net"
 	"strconv"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // IbConnection wrap the tcp connection with TWS or Gateway
@@ -29,7 +29,7 @@ func (ibconn *IbConnection) Write(bs []byte) (int, error) {
 	ibconn.numBytesSent += n
 	ibconn.numMsgSent++
 
-	log.WithFields(log.Fields{"func": "write", "count": n}).Debug(bs)
+	log.Debug("conn write", zap.Int("count", n), zap.Binary("bytes", bs))
 
 	return n, err
 }
@@ -40,7 +40,7 @@ func (ibconn *IbConnection) Read(bs []byte) (int, error) {
 	ibconn.numBytesRecv += n
 	ibconn.numMsgRecv++
 
-	log.WithFields(log.Fields{"func": "read", "count": n}).Debug(bs)
+	log.Debug("conn read", zap.Int("count", n), zap.Binary("bytes", bs))
 
 	return n, err
 }
@@ -57,8 +57,12 @@ func (ibconn *IbConnection) reset() {
 }
 
 func (ibconn *IbConnection) disconnect() error {
-	log.WithFields(log.Fields{"func": "disconnect"}).
-		Debugf("Sent %v msgs, %v Bytes.Recv %v msgs, %v Bytes.", ibconn.numMsgSent, ibconn.numBytesSent, ibconn.numMsgRecv, ibconn.numBytesRecv)
+	log.Info("conn disconnect",
+		zap.Int("nMsgSent", ibconn.numMsgSent),
+		zap.Int("nBytesSent", ibconn.numBytesSent),
+		zap.Int("nMsgRecv", ibconn.numMsgRecv),
+		zap.Int("nBytesRecv", ibconn.numBytesRecv),
+	)
 	return ibconn.conn.Close()
 }
 
@@ -71,16 +75,16 @@ func (ibconn *IbConnection) connect(host string, port int) error {
 	server := ibconn.host + ":" + strconv.Itoa(port)
 	addr, err = net.ResolveTCPAddr("tcp4", server)
 	if err != nil {
-		log.Errorf("ResolveTCPAddr Error: %v", err)
+		log.Error("failed to resove tcp address", zap.Error(err), zap.String("host", server))
 		return err
 	}
 	ibconn.conn, err = net.DialTCP("tcp4", nil, addr)
 	if err != nil {
-		log.Errorf("DialTCP Error: %v", err)
+		log.Error("failed to dial tcp", zap.Error(err), zap.Any("address", addr))
 		return err
 	}
 
-	log.Debugf("TCP Socket Connected to: %v", ibconn.conn.RemoteAddr())
+	log.Debug("tcp socket connected", zap.Any("address", ibconn.conn.RemoteAddr()))
 
 	return err
 }

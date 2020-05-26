@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	// "time"
 )
 
@@ -22,14 +22,14 @@ func TestClient(t *testing.T) {
 	ic := NewIbClient(ibwrapper)
 	err = ic.Connect("localhost", 7497, 0)
 	if err != nil {
-		log.Info("Connect failed:", err)
+		log.Panic("failed to connect", zap.Error(err))
 		return
 	}
 
 	ic.SetConnectionOptions("+PACEAPI")
 	err = ic.HandShake()
 	if err != nil {
-		log.Println("HandShake failed:", err)
+		log.Panic("failed to hand shake", zap.Error(err))
 		return
 	}
 	ic.Run()
@@ -105,14 +105,14 @@ func TestClientWithContext(t *testing.T) {
 	ic.SetContext(ctx)
 	err = ic.Connect("localhost", 7497, 0)
 	if err != nil {
-		log.Info("Connect failed:", err)
+		log.Panic("failed to connect", zap.Error(err))
 		return
 	}
 
 	ic.SetConnectionOptions("+PACEAPI")
 	err = ic.HandShake()
 	if err != nil {
-		log.Println("HandShake failed:", err)
+		log.Panic("failed to hand shake", zap.Error(err))
 		return
 	}
 	ic.Run()

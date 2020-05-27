@@ -11,11 +11,10 @@ import (
 
 // IbConnection wrap the tcp connection with TWS or Gateway
 type IbConnection struct {
-	host     string
-	port     int
-	clientID int64
-	// conn         net.Conn
-	conn         *net.TCPConn
+	*net.TCPConn
+	host         string
+	port         int
+	clientID     int64
 	state        int
 	numBytesSent int
 	numMsgSent   int
@@ -24,7 +23,7 @@ type IbConnection struct {
 }
 
 func (ibconn *IbConnection) Write(bs []byte) (int, error) {
-	n, err := ibconn.conn.Write(bs)
+	n, err := ibconn.TCPConn.Write(bs)
 
 	ibconn.numBytesSent += n
 	ibconn.numMsgSent++
@@ -35,7 +34,7 @@ func (ibconn *IbConnection) Write(bs []byte) (int, error) {
 }
 
 func (ibconn *IbConnection) Read(bs []byte) (int, error) {
-	n, err := ibconn.conn.Read(bs)
+	n, err := ibconn.TCPConn.Read(bs)
 
 	ibconn.numBytesRecv += n
 	ibconn.numMsgRecv++
@@ -63,7 +62,7 @@ func (ibconn *IbConnection) disconnect() error {
 		zap.Int("nMsgRecv", ibconn.numMsgRecv),
 		zap.Int("nBytesRecv", ibconn.numBytesRecv),
 	)
-	return ibconn.conn.Close()
+	return ibconn.Close()
 }
 
 func (ibconn *IbConnection) connect(host string, port int) error {
@@ -72,19 +71,19 @@ func (ibconn *IbConnection) connect(host string, port int) error {
 	ibconn.host = host
 	ibconn.port = port
 	ibconn.reset()
+
 	server := ibconn.host + ":" + strconv.Itoa(port)
-	addr, err = net.ResolveTCPAddr("tcp4", server)
-	if err != nil {
+	if addr, err = net.ResolveTCPAddr("tcp4", server); err != nil {
 		log.Error("failed to resove tcp address", zap.Error(err), zap.String("host", server))
 		return err
 	}
-	ibconn.conn, err = net.DialTCP("tcp4", nil, addr)
-	if err != nil {
+
+	if ibconn.TCPConn, err = net.DialTCP("tcp4", nil, addr); err != nil {
 		log.Error("failed to dial tcp", zap.Error(err), zap.Any("address", addr))
 		return err
 	}
 
-	log.Debug("tcp socket connected", zap.Any("address", ibconn.conn.RemoteAddr()))
+	log.Debug("tcp socket connected", zap.Any("address", ibconn.TCPConn.RemoteAddr()))
 
 	return err
 }

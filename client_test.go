@@ -15,7 +15,8 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	// log.SetLevel(log.DebugLevel)
+	log, _ = zap.NewDevelopment() // log is default for production(json encode, info level), set to development(console encode, debug level) here
+	defer log.Sync()
 	runtime.GOMAXPROCS(4)
 	var err error
 	ibwrapper := new(Wrapper)

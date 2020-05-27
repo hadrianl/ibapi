@@ -29,7 +29,7 @@ const (
 var log *zap.Logger
 
 func init() {
-	log, _ = zap.NewDevelopment()
+	log, _ = zap.NewProduction()
 }
 
 func bytesToTime(b []byte) time.Time {

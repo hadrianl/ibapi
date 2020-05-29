@@ -32,6 +32,16 @@ func init() {
 	log, _ = zap.NewProduction()
 }
 
+// SetAPILogger sets the options of internal logger for API, such as level, encoder, output, see uber.org/zap for more information
+func SetAPILogger(opts ...zap.Option) {
+	log = log.WithOptions(opts...)
+}
+
+// GetLogger gets a clone of the internal logger with the option, see uber.org/zap for more information
+func GetLogger(opts ...zap.Option) *zap.Logger {
+	return log.WithOptions(opts...)
+}
+
 func bytesToTime(b []byte) time.Time {
 	format := "20060102 15:04:05 China Standard Time"
 	t := string(b)

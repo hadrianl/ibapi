@@ -7,6 +7,7 @@ pure golang, Unofficial, smilar to the official python Implement
 `go get -u github.com/hadrianl/ibapi`
 
 ## USAGE
+Implement `IbWrapper` to handle datas delivered via tws or gateway, `Wrapper` in demo is a default implement that just output data to std. 
 ### Demo 1
 ```golang
 import (

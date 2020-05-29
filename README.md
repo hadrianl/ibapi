@@ -12,11 +12,12 @@ pure golang, Unofficial, smilar to the official python Implement
 import (
     . "github.com/hadrianl/ibapi"
     "time"
-    log "github.com/sirupsen/logrus"
 )
 
 func main(){
     var err error
+    log := GetLogger().Sugar()
+    defer log.Sync()
     ibwrapper := &Wrapper{}
     ic := NewIbClient(ibwrapper)
     err = ic.Connect("127.0.0.1", 4002, 0)
@@ -27,7 +28,7 @@ func main(){
 
     err = ic.HandShake()
     if err != nil {
-        log.Println("HandShake failed:", err)
+        log.Info("HandShake failed:", err)
         return
     }
 
@@ -49,11 +50,12 @@ import (
     . "github.com/hadrianl/ibapi"
     "time"
     "context"
-    log "github.com/sirupsen/logrus"
 )
 
 func main(){
     var err error
+    log := GetLogger().Sugar()
+    defer log.Sync()
     ibwrapper := &Wrapper{}
     ctx, _ := context.WithTimeout(context.Background(), time.Second*30)
     ic := NewIbClient(ibwrapper)
@@ -66,7 +68,7 @@ func main(){
 
     err = ic.HandShake()
     if err != nil {
-        log.Println("HandShake failed:", err)
+        log.Error("HandShake failed:", err)
         return
     }
 
@@ -78,7 +80,7 @@ func main(){
     ic.Run()
     
     err = ic.LoopUntilDone()  // block until ctx or ic is done, also, 
-	fmt.Println(err)
+	log.Info(err)
 }
 
 ```

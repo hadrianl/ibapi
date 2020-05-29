@@ -10,7 +10,7 @@ func TestConnection(t *testing.T) {
 	conn := &IbConnection{}
 	conn.connect("127.0.0.1", 7497)
 	buf := make([]byte, 4096)
-	_, err := conn.conn.Read(buf)
+	_, err := conn.Read(buf)
 	if err != nil {
 		panic(err)
 	}

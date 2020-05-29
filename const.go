@@ -1,12 +1,12 @@
 package ibapi
 
 // IN identifies the msg type of the buf received from TWS or Gateway
-type IN int64
+type IN = int64
 
 // OUT identifies the msg type of the buf sended to  TWS or Gateway
-type OUT int64
-type FiledType int64
-type Version int
+type OUT = int64
+type FiledType = int64
+type Version = int
 
 const (
 	INT FiledType = 1

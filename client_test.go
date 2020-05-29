@@ -5,31 +5,35 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	// "time"
 )
 
 func TestClient(t *testing.T) {
-	// log.SetLevel(log.DebugLevel)
+	log, _ = zap.NewDevelopment() // log is default for production(json encode, info level), set to development(console encode, debug level) here
+	defer log.Sync()
 	runtime.GOMAXPROCS(4)
 	var err error
 	ibwrapper := new(Wrapper)
 	ic := NewIbClient(ibwrapper)
 	err = ic.Connect("localhost", 7497, 0)
 	if err != nil {
-		log.Info("Connect failed:", err)
+		log.Panic("failed to connect", zap.Error(err))
 		return
 	}
 
 	ic.SetConnectionOptions("+PACEAPI")
 	err = ic.HandShake()
 	if err != nil {
-		log.Println("HandShake failed:", err)
+		log.Panic("failed to hand shake", zap.Error(err))
 		return
 	}
 	ic.Run()
@@ -99,21 +103,21 @@ func TestClientWithContext(t *testing.T) {
 	// log.SetLevel(log.DebugLevel)
 	runtime.GOMAXPROCS(4)
 	var err error
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*30000)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30000)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	ibwrapper := new(Wrapper)
 	ic := NewIbClient(ibwrapper)
 	ic.SetContext(ctx)
 	err = ic.Connect("localhost", 7497, 0)
 	if err != nil {
-		log.Info("Connect failed:", err)
-		return
+		log.Panic("failed to connect", zap.Error(err))
 	}
 
 	ic.SetConnectionOptions("+PACEAPI")
 	err = ic.HandShake()
 	if err != nil {
-		log.Println("HandShake failed:", err)
-		return
+		log.Panic("failed to hand shake", zap.Error(err))
 	}
 	ic.Run()
 
@@ -141,15 +145,20 @@ func TestClientWithContext(t *testing.T) {
 		"HighestSeverity", "DayTradesRemaining", "Leverage", "$LEDGER:ALL"}
 	ic.ReqAccountSummary(ic.GetReqID(), "All", strings.Join(tags, ","))
 
-	f := func() {
-		ic.ReqHistoricalData(ic.GetReqID(), &hsi, "", "4800 S", "1 min", "TRADES", false, 1, true, nil)
-	}
+	ic.ReqHistoricalData(ic.GetReqID(), &hsi, "", "4800 S", "1 min", "TRADES", false, 1, true, nil)
 
 	pprofServe := func() {
 		http.ListenAndServe("localhost:6060", nil)
 	}
 
 	go pprofServe()
+
+	f := func() {
+		sig := <-sigs
+		fmt.Print(sig)
+		cancel()
+	}
+
 	err = ic.LoopUntilDone(f)
 	fmt.Println(err)
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 const (
@@ -38,19 +38,19 @@ func (d *ibDecoder) interpret(msgBytes []byte) {
 	// if decode error ocours,handle the error
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorf("Deocde error -> %v", err) //TODO: handle error
+			log.Error("failed to decode", zap.Error(err.(error)))
 			d.errChan <- err.(error)
 		}
 	}()
 
-	log.Debugf("interpret -> MsgBuffer: %v", msgBuf.Bytes())
+	log.Debug("interpret", zap.Binary("MsgBytes", msgBuf.Bytes()))
 
 	// read the msg type
 	MsgID := msgBuf.readInt()
 	if processer, ok := d.msgID2process[IN(MsgID)]; ok {
 		processer(msgBuf)
 	} else {
-		log.Warnf("MsgId: %v NOT FOUND!!!-> MsgBytes: %v", MsgID, msgBuf.Bytes())
+		log.Warn("msg ID not found!!!", zap.Int64("msgID", MsgID), zap.Binary("MsgBytes", msgBuf.Bytes()))
 	}
 
 }

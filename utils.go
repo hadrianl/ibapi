@@ -10,7 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
+	// log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -25,8 +26,20 @@ const (
 	MAX_MSG_LEN int = 0xFFFFFF
 )
 
+var log *zap.Logger
+
 func init() {
-	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02T15:04:05.000000000Z07:00", FullTimestamp: true})
+	log, _ = zap.NewProduction()
+}
+
+// SetAPILogger sets the options of internal logger for API, such as level, encoder, output, see uber.org/zap for more information
+func SetAPILogger(opts ...zap.Option) {
+	log = log.WithOptions(opts...)
+}
+
+// GetLogger gets a clone of the internal logger with the option, see uber.org/zap for more information
+func GetLogger(opts ...zap.Option) *zap.Logger {
+	return log.WithOptions(opts...)
 }
 
 func bytesToTime(b []byte) time.Time {
@@ -34,7 +47,7 @@ func bytesToTime(b []byte) time.Time {
 	t := string(b)
 	localtime, err := time.ParseInLocation(format, t, time.Local)
 	if err != nil {
-		log.Error(err)
+		log.Error("btyes to time error", zap.Error(err))
 	}
 	return localtime
 }
@@ -55,7 +68,7 @@ func readMsgBytes(reader *bufio.Reader) ([]byte, error) {
 	}
 
 	size := int(binary.BigEndian.Uint32(sizeBytes))
-	log.Debugf("readMsgBytes-> sizeBytes: %v", size)
+	log.Debug("readMsgBytes", zap.Int("size", size))
 
 	msgBytes := make([]byte, size)
 
@@ -72,7 +85,7 @@ func readMsgBytes(reader *bufio.Reader) ([]byte, error) {
 
 	}
 
-	log.Debugf("readMsgBytes-> msgBytes: %v", msgBytes)
+	log.Debug("readMsgBytes", zap.Binary("msgBytes", msgBytes))
 	return msgBytes, nil
 
 }
@@ -98,11 +111,11 @@ func scanFields(data []byte, atEOF bool) (advance int, token []byte, err error) 
 	return totalSize, msgBytes, nil
 }
 
-func field2Bytes(msg interface{}) []byte {
+func field2Bytes(field interface{}) []byte {
 	// var bs []byte
 	bs := make([]byte, 0, 9)
 
-	switch v := msg.(type) {
+	switch v := field.(type) {
 
 	case int64:
 		bs = encodeInt64(v)
@@ -114,8 +127,6 @@ func field2Bytes(msg interface{}) []byte {
 		bs = encodeBool(v)
 	case int:
 		bs = encodeInt(v)
-	case OUT:
-		bs = encodeInt64(int64(v)) // maybe there is a better solution
 	case []byte:
 		bs = v
 
@@ -123,7 +134,7 @@ func field2Bytes(msg interface{}) []byte {
 	// 	b = encodeTime(msg.(time.Time))
 
 	default:
-		log.Panicf("errmakeMsgBytes: can't converst the param-> %v", msg)
+		log.Panic("failed to covert the field", zap.Reflect("field", field))
 	}
 
 	return append(bs, '\x00')
@@ -160,7 +171,7 @@ func decodeInt(field []byte) int64 {
 	}
 	i, err := strconv.ParseInt(string(field), 10, 64)
 	if err != nil {
-		log.Panicf("errDecodeInt: %v", err)
+		log.Panic("failed to decode int", zap.Error(err))
 	}
 	return i
 }
@@ -212,9 +223,8 @@ func handleEmpty(d interface{}) string {
 		return strconv.FormatFloat(v, 'g', 10, 64)
 
 	default:
-		log.Println(d)
-		panic("handleEmpty error")
-
+		log.Panic("no handler for such type", zap.Reflect("val", d))
+		return "" // never reach here
 	}
 }
 
@@ -263,7 +273,7 @@ func (m *MsgBuffer) readInt() int64 {
 	var i int64
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
-		log.Panicf("errDecodeInt: %v", m.err)
+		log.Panic("decode int64 error", zap.Error(m.err))
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
@@ -273,7 +283,7 @@ func (m *MsgBuffer) readInt() int64 {
 
 	i, m.err = strconv.ParseInt(string(m.bs), 10, 64)
 	if m.err != nil {
-		log.Panicf("errDecodeInt: %v", m.err)
+		log.Panic("decode int64 error", zap.Error(m.err))
 	}
 
 	return i
@@ -283,7 +293,7 @@ func (m *MsgBuffer) readIntCheckUnset() int64 {
 	var i int64
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
-		log.Panicf("errDecodeInt: %v", m.err)
+		log.Panic("decode int64 error", zap.Error(m.err))
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
@@ -293,7 +303,7 @@ func (m *MsgBuffer) readIntCheckUnset() int64 {
 
 	i, m.err = strconv.ParseInt(string(m.bs), 10, 64)
 	if m.err != nil {
-		log.Panicf("errDecodeInt: %v", m.err)
+		log.Panic("decode int64 error", zap.Error(m.err))
 	}
 
 	return i
@@ -303,7 +313,7 @@ func (m *MsgBuffer) readFloat() float64 {
 	var f float64
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
-		log.Panicf("errDecodeFloat: %v", m.err)
+		log.Panic("decode float64 error", zap.Error(m.err))
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
@@ -313,7 +323,7 @@ func (m *MsgBuffer) readFloat() float64 {
 
 	f, m.err = strconv.ParseFloat(string(m.bs), 64)
 	if m.err != nil {
-		log.Panicf("errDecodeFloat: %v", m.err)
+		log.Panic("decode float64 error", zap.Error(m.err))
 	}
 
 	return f
@@ -323,7 +333,7 @@ func (m *MsgBuffer) readFloatCheckUnset() float64 {
 	var f float64
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
-		log.Panicf("errDecodeFloat: %v", m.err)
+		log.Panic("decode float64 error", zap.Error(m.err))
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
@@ -333,7 +343,7 @@ func (m *MsgBuffer) readFloatCheckUnset() float64 {
 
 	f, m.err = strconv.ParseFloat(string(m.bs), 64)
 	if m.err != nil {
-		log.Panicf("errDecodeFloat: %v", m.err)
+		log.Panic("decode float64 error", zap.Error(m.err))
 	}
 
 	return f
@@ -342,7 +352,7 @@ func (m *MsgBuffer) readFloatCheckUnset() float64 {
 func (m *MsgBuffer) readBool() bool {
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
-		log.Panicf("errDecodeBool: %v", m.err)
+		log.Panic("decode bool error", zap.Error(m.err))
 	}
 
 	m.bs = m.bs[:len(m.bs)-1]
@@ -356,7 +366,7 @@ func (m *MsgBuffer) readBool() bool {
 func (m *MsgBuffer) readString() string {
 	m.bs, m.err = m.ReadBytes(fieldSplit)
 	if m.err != nil {
-		log.Panicf("errDecodeString: %v", m.err)
+		log.Panic("decode string error", zap.Error(m.err))
 	}
 
 	return string(m.bs[:len(m.bs)-1])

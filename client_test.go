@@ -163,3 +163,22 @@ func TestClientWithContext(t *testing.T) {
 	fmt.Println(err)
 
 }
+
+func BenchmarkPlaceOrder(b *testing.B) {
+	ibwrapper := new(Wrapper)
+	ic := NewIbClient(ibwrapper)
+	ic.setConnState(2)
+	ic.serverVersion = 151
+	contract := new(Contract)
+	order := new(Order)
+
+	go func() {
+		for {
+			<-ic.reqChan
+		}
+	}()
+
+	for i := 0; i < b.N; i++ {
+		ic.PlaceOrder(1, contract, order)
+	}
+}

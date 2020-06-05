@@ -45,7 +45,7 @@ type IbClient struct {
 	terminatedSignal chan int
 	clientVersion    Version
 	serverVersion    Version
-	connTime         time.Time
+	connTime         string
 	extraAuth        bool
 	wg               sync.WaitGroup
 	ctx              context.Context
@@ -228,7 +228,7 @@ func (ic *IbClient) HandShake() error {
 	serverInfo := splitMsgBytes(msgBytes)
 	v, _ := strconv.Atoi(string(serverInfo[0]))
 	ic.serverVersion = Version(v)
-	ic.connTime = bytesToTime(serverInfo[1])
+	ic.connTime = string(serverInfo[1])
 
 	// Init Decoder
 	ic.decoder.setVersion(ic.serverVersion)
@@ -236,7 +236,7 @@ func (ic *IbClient) HandShake() error {
 	ic.decoder.setmsgID2process()
 
 	log.Info("init info", zap.Int("serverVersion", ic.serverVersion))
-	log.Info("init info", zap.Time("connectionTime", ic.connTime))
+	log.Info("init info", zap.String("connectionTime", ic.connTime))
 
 	// send startAPI to tell server that client is ready
 	if err = ic.startAPI(); err != nil {
@@ -291,7 +291,7 @@ func (ic *IbClient) ServerVersion() Version {
 }
 
 // ConnectionTime is the time that connection is comfirmed
-func (ic *IbClient) ConnectionTime() time.Time {
+func (ic *IbClient) ConnectionTime() string {
 	return ic.connTime
 }
 
@@ -304,7 +304,7 @@ func (ic *IbClient) reset() {
 	ic.extraAuth = false
 	ic.clientID = -1
 	ic.serverVersion = -1
-	ic.connTime = time.Time{}
+	ic.connTime = ""
 
 	// init scanner
 	ic.scanner = bufio.NewScanner(ic.conn)

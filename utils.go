@@ -43,7 +43,9 @@ func GetLogger(opts ...zap.Option) *zap.Logger {
 }
 
 func bytesToTime(b []byte) time.Time {
-	format := "20060102 15:04:05 China Standard Time"
+	// format := "20060102 15:04:05 China Standard Time"
+	// 214 208 185 250 177 234 215 188 202 177 188 228
+	format := "20060102 15:04:05 CST"
 	t := string(b)
 	localtime, err := time.ParseInLocation(format, t, time.Local)
 	if err != nil {

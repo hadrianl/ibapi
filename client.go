@@ -141,9 +141,10 @@ func (ic *IbClient) Disconnect() (err error) {
 	}()
 	defer log.Info("Disconnected!")
 
-	ic.terminatedSignal <- 1
-	ic.terminatedSignal <- 1
-	ic.terminatedSignal <- 1
+	// ic.terminatedSignal <- 1
+	// ic.terminatedSignal <- 1
+	// ic.terminatedSignal <- 1
+	close(ic.terminatedSignal) // close make the term signal chan unblocked
 
 	if err = ic.conn.disconnect(); err != nil {
 		panic(err)

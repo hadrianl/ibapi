@@ -108,9 +108,10 @@ func scanFields(data []byte, atEOF bool) (advance int, token []byte, err error) 
 		return 0, nil, nil
 	}
 
-	msgBytes := make([]byte, totalSize-4, totalSize-4)
-	copy(msgBytes, data[4:totalSize])
-	return totalSize, msgBytes, nil
+	// msgBytes := make([]byte, totalSize-4, totalSize-4)
+	// copy(msgBytes, data[4:totalSize])
+	// not copy here, copied by callee more reasonable
+	return totalSize, data[4:totalSize], nil
 }
 
 func field2Bytes(field interface{}) []byte {

@@ -2830,7 +2830,12 @@ func (ic *IbClient) goReceive() {
 	ic.wg.Add(1)
 
 	for ic.scanner.Scan() {
-		msgBytes := ic.scanner.Bytes()
+		// msgBytes := ic.scanner.Bytes()
+		// ic.msgChan <- msgBytes
+		// msgChan has buffer size, so copy here to avoid underlying arrar being overwritten
+		// or we can just set the msgChan without size so that it's no need to copy, but might block the receiver because of slow consumer
+		msgBytes := make([]byte, len(ic.scanner.Bytes()))
+		copy(msgBytes, ic.scanner.Bytes())
 		ic.msgChan <- msgBytes
 	}
 

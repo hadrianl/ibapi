@@ -182,3 +182,20 @@ func BenchmarkPlaceOrder(b *testing.B) {
 		ic.PlaceOrder(1, contract, order)
 	}
 }
+
+func BenchmarkAppendEmptySlice(b *testing.B) {
+	arr := []byte("benchmark test of append and copy")
+	for i := 0; i < b.N; i++ {
+		_ = append([]byte{}, arr...)
+	}
+}
+
+func BenchmarkCopySlice(b *testing.B) {
+	arr := []byte("benchmark test of append and copy")
+	for i := 0; i < b.N; i++ {
+		oarr := arr
+		newSlice := make([]byte, len(oarr))
+		copy(newSlice, oarr)
+		_ = newSlice
+	}
+}

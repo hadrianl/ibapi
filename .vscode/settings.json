@@ -1,9 +1,0 @@
-{
-    "go.autocompleteUnimportedPackages": true,
-    "go.useCodeSnippetsOnFunctionSuggest": true,
-    "go.useCodeSnippetsOnFunctionSuggestWithoutType": true,
-    "go.inferGopath": false,
-    "go.gotoSymbol.includeImports": true,
-    "go.gotoSymbol.includeGoroot": true,
-    "go.formatTool": "gofmt"
-}

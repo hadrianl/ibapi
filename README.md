@@ -50,7 +50,8 @@ func main(){
         log.Panic("Connect failed:", err)
     }
 
-    // handshake with tws or gateway, send handshake protocol to tell tws or gateway the version of client and receive the server version and connection time from tws or gateway
+    // handshake with tws or gateway, send handshake protocol to tell tws or gateway the version of client
+    // and receive the server version and connection time from tws or gateway.
     // fail if someone else had already connected to tws or gateway with same clientID
     if err := ic.HandShake();err != nil {
         log.Panic("HandShake failed:", err)

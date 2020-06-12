@@ -67,7 +67,7 @@ func main(){
 
     // start to send req and receive msg from tws or gateway after this
     ic.Run()
-    <-time.After(time.Second * 60):
+    <-time.After(time.Second * 60)
     ic.Disconnect()
 }
 

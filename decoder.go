@@ -43,7 +43,7 @@ func (d *ibDecoder) interpret(msgBytes []byte) {
 		}
 	}()
 
-	log.Debug("interpret", zap.Binary("MsgBytes", msgBuf.Bytes()))
+	// log.Debug("interpret", zap.Binary("MsgBytes", msgBuf.Bytes()))
 
 	// read the msg type
 	MsgID := msgBuf.readInt()

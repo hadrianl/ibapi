@@ -161,7 +161,7 @@ type CommissionReport struct {
 }
 
 func (cr CommissionReport) String() string {
-	return fmt.Sprintf("CommissionReport<ExecId: %v, Commission: %v, Currency: %v, RealizedPnL: %v, Yield: %v, YieldRedemptionDate: %v>",
+	return fmt.Sprintf("CommissionReport<ExecId: %v, Commission: %v%s, RealizedPnL: %v, Yield: %v, YieldRedemptionDate: %v>",
 		cr.ExecId,
 		cr.Commission,
 		cr.Currency,

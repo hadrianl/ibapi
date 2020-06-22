@@ -245,16 +245,14 @@ type OrderState struct {
 }
 
 func (state OrderState) String() string {
-	s := fmt.Sprintf("OrderState<Status: %s, Commission: %v%s, CompletedTime: %s, CompletedStatus: %s>",
+	return fmt.Sprintf(
+		"OrderState<Status: %s, Commission: %v%s, CompletedTime: %s, CompletedStatus: %s>",
 		state.Status,
 		state.Commission,
 		state.CommissionCurrency,
 		state.CompletedTime,
 		state.CompletedStatus,
 	)
-
-	return s
-
 }
 
 // SoftDollarTier is a container for storing Soft Dollar Tier information

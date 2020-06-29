@@ -72,7 +72,7 @@ func TestClient(t *testing.T) {
 	// ic.ReqRealTimeBars(ic.GetReqID(), &hsi, 5, "TRADES", false, nil)
 	// // ic.CancelRealTimeBars()
 	// ic.ReqTickByTickData(ic.GetReqID(), &hsi, "Last", 5, false)
-	// // ic.CancelTickByTickData()
+	// ic.CancelTickByTickData()
 	// ic.ReqHistoricalTicks(ic.GetReqID(), &hsi, "20190916 09:15:00", "", 100, "Trades", false, false, nil)
 	// ic.ReqHistogramData(ic.GetReqID(), &hsi, false, "3 days")
 	// // ic.CancelHistogramData()
@@ -136,14 +136,19 @@ func TestClient(t *testing.T) {
 	// ic.ReqNewsBulletins(true)
 	// ic.ReqFundamentalData()
 
-loop:
-	for {
-		select {
-		case <-time.After(time.Second * 60 * 60 * 24):
+	ic.LoopUntilDone(
+		func() {
+			<-time.After(time.Second * 30)
 			ic.Disconnect()
-			break loop
-		}
-	}
+		})
+	// loop:
+	// 	for {
+	// 		select {
+	// 		case <-time.After(time.Second * 60):
+	// 			ic.Disconnect()
+	// 			break loop
+	// 		}
+	// 	}
 
 }
 

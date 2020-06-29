@@ -49,7 +49,6 @@ type IbClient struct {
 	extraAuth        bool
 	wg               sync.WaitGroup
 	ctx              context.Context
-	done             chan error
 	err              error
 }
 
@@ -57,7 +56,6 @@ type IbClient struct {
 func NewIbClient(wrapper IbWrapper) *IbClient {
 	ic := &IbClient{}
 	ic.SetWrapper(wrapper)
-	ic.done = make(chan error, 1)
 	ic.reset()
 
 	return ic
@@ -130,30 +128,22 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 */
 func (ic *IbClient) Disconnect() (err error) {
 	defer ic.reset()
-	defer func() {
-		if err := recover(); err != nil {
-			ic.done <- err.(error)
-		} else {
-			ic.done <- nil
-		}
-
-	}()
 	defer log.Info("Disconnected!")
 
 	close(ic.terminatedSignal) // close make the term signal chan unblocked
 
 	if err = ic.conn.disconnect(); err != nil {
-		panic(err)
+		return
 	}
 
 	ic.wg.Wait()
 	ic.wrapper.ConnectionClosed()
 
 	if err = ic.err; err != nil {
-		panic(err)
+		return
 	}
 
-	return nil
+	return
 }
 
 // IsConnected check if there is a connection to TWS or GateWay
@@ -245,6 +235,7 @@ func (ic *IbClient) HandShake() error {
 	/* comfirmReadyLoop try to receive manage account and vaild id from tws or gateway,
 	in this way, client could make sure no other client with the same clientId was already connected to tws or gateway.
 	*/
+	timeout := time.After(60 * time.Second)
 comfirmReadyLoop:
 	for {
 		select {
@@ -256,8 +247,9 @@ comfirmReadyLoop:
 
 			// check and del the msg ID
 			for i, ID := range comfirmMsgIDs {
-				if MsgID == int64(ID) {
+				if MsgID == ID {
 					comfirmMsgIDs = append(comfirmMsgIDs[:i], comfirmMsgIDs[i+1:]...)
+					break
 				}
 			}
 
@@ -267,7 +259,7 @@ comfirmReadyLoop:
 				ic.wrapper.ConnectAck()
 				break comfirmReadyLoop
 			}
-		case <-time.After(60 * time.Second):
+		case <-timeout:
 			ic.setConnState(DISCONNECTED)
 			ic.wrapper.Error(NO_VALID_ID, ALREADY_CONNECTED.code, ALREADY_CONNECTED.msg)
 			return ALREADY_CONNECTED
@@ -311,7 +303,7 @@ func (ic *IbClient) reset() {
 	ic.reqChan = make(chan []byte, 10)
 	ic.errChan = make(chan error, 10)
 	ic.msgChan = make(chan []byte, 100)
-	ic.terminatedSignal = make(chan int, 3)
+	ic.terminatedSignal = make(chan int)
 	ic.wg = sync.WaitGroup{}
 	ic.connectOptions = ""
 	ic.setConnState(DISCONNECTED)
@@ -2864,8 +2856,6 @@ func (ic *IbClient) goReceive() {
 	ic.wg.Add(1)
 
 	for ic.scanner.Scan() {
-		// msgBytes := ic.scanner.Bytes()
-		// ic.msgChan <- msgBytes
 		// msgChan has buffer size, so copy here to avoid underlying arrar being overwritten
 		// or we can just set the msgChan without size so that it's no need to copy, but might block the receiver because of slow consumer
 		msgBytes := make([]byte, len(ic.scanner.Bytes()))
@@ -2951,27 +2941,8 @@ func (ic *IbClient) LoopUntilDone(fs ...func()) error {
 	}()
 
 	select {
-	case err := <-ic.done:
-		return err
+	case <-ic.terminatedSignal:
+		return ic.err
 	}
 
 }
-
-// func (ic *IbClient) RunWithContext() error {
-// 	if !ic.IsConnected() {
-// 		ic.wrapper.Error(NO_VALID_ID, NOT_CONNECTED.code, NOT_CONNECTED.msg)
-// 		return NOT_CONNECTED
-// 	}
-// 	log.Info("RUN Client")
-
-// 	go ic.goRequest()
-// 	go ic.goDecode()
-
-// 	select {
-// 	case <-ic.ctx.Done():
-// 		return ic.ctx.Err()
-// 	case err := <-ic.done:
-// 		return err
-// 	}
-
-// }

@@ -148,13 +148,13 @@ func field2Bytes(field interface{}) []byte {
 func makeMsgBytes(fields ...interface{}) []byte {
 
 	// make the whole the slice of msgBytes
-	msgBytesSlice := [][]byte{}
+	msgBytesSlice := make([][]byte, 0, len(fields))
 	for _, f := range fields {
 		// make the field into msgBytes
 		msgBytes := field2Bytes(f)
 		msgBytesSlice = append(msgBytesSlice, msgBytes)
 	}
-	msg := bytes.Join(msgBytesSlice, []byte(""))
+	msg := bytes.Join(msgBytesSlice, nil)
 
 	// add the size header
 	sizeBytes := make([]byte, 4)
@@ -184,23 +184,19 @@ func decodeString(field []byte) string {
 }
 
 func encodeInt64(i int64) []byte {
-	bs := []byte(strconv.FormatInt(i, 10))
-	return bs
+	return []byte(strconv.FormatInt(i, 10))
 }
 
 func encodeInt(i int) []byte {
-	bs := []byte(strconv.Itoa(i))
-	return bs
+	return []byte(strconv.Itoa(i))
 }
 
 func encodeFloat64(f float64) []byte {
-	bs := []byte(strconv.FormatFloat(f, 'g', 10, 64))
-	return bs
+	return []byte(strconv.FormatFloat(f, 'g', 10, 64))
 }
 
 func encodeString(str string) []byte {
-	bs := []byte(str)
-	return bs
+	return []byte(str)
 }
 
 func encodeBool(b bool) []byte {

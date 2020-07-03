@@ -2866,16 +2866,18 @@ func (ic *IbClient) goReceive() {
 	select {
 	case <-ic.terminatedSignal:
 	default:
-		switch err := ic.scanner.Err(); err {
+		err := ic.scanner.Err()
+		switch err {
 		case nil:
-			panic(errors.Wrap(io.EOF, "scanner Done"))
+			err = errors.Wrap(io.EOF, "scanner Done")
 		case bufio.ErrTooLong:
 			errBytes := ic.scanner.Bytes()
 			ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, len(errBytes), errBytes))
-			panic(errors.Wrap(err, BAD_LENGTH.msg))
+			err = errors.Wrap(err, BAD_LENGTH.msg)
 		default:
-			panic(errors.Wrap(err, "scanner Error"))
+			err = errors.Wrap(err, "scanner Error")
 		}
+		panic(err)
 	}
 
 }

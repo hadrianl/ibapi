@@ -1,7 +1,6 @@
 package ibapi
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -47,7 +46,7 @@ func (d *ibDecoder) interpret(msgBytes []byte) {
 
 	// read the msg type
 	MsgID := msgBuf.readInt()
-	if processer, ok := d.msgID2process[IN(MsgID)]; ok {
+	if processer, ok := d.msgID2process[MsgID]; ok {
 		processer(msgBuf)
 	} else {
 		log.Warn("msg ID not found!!!", zap.Int64("msgID", MsgID), zap.Binary("MsgBytes", msgBuf.Bytes()))
@@ -430,7 +429,6 @@ func (d *ibDecoder) wrapTickSnapshotEnd(msgBuf *MsgBuffer) {
 }
 
 func (d *ibDecoder) wrapPositionEnd(msgBuf *MsgBuffer) {
-	// v := decodeInt(f[0])
 
 	d.wrapper.PositionEnd()
 }
@@ -535,11 +533,9 @@ func (d *ibDecoder) processOrderStatusMsg(msgBuf *MsgBuffer) {
 	clientID := msgBuf.readInt()
 	whyHeld := msgBuf.readString()
 
-	var mktCapPrice float64
+	mktCapPrice := 0.0
 	if d.version >= mMIN_SERVER_VER_MARKET_CAP_PRICE {
 		mktCapPrice = msgBuf.readFloat()
-	} else {
-		mktCapPrice = float64(0)
 	}
 
 	d.wrapper.OrderStatus(orderID, status, filled, remaining, avgFilledPrice, permID, parentID, lastFillPrice, clientID, whyHeld, mktCapPrice)
@@ -693,31 +689,38 @@ func (d *ibDecoder) processOpenOrder(msgBuf *MsgBuffer) {
 	// ComboLegs
 	c.ComboLegsDescription = msgBuf.readString()
 	if version >= 29 {
-		c.ComboLegs = []ComboLeg{} // TODO: pre set the cap
-		for comboLegsCount := msgBuf.readInt(); comboLegsCount > 0; comboLegsCount-- {
-			fmt.Println("comboLegsCount:", comboLegsCount)
-			comboleg := ComboLeg{}
-			comboleg.ContractID = msgBuf.readInt()
-			comboleg.Ratio = msgBuf.readInt()
-			comboleg.Action = msgBuf.readString()
-			comboleg.Exchange = msgBuf.readString()
-			comboleg.OpenClose = msgBuf.readInt()
-			comboleg.ShortSaleSlot = msgBuf.readInt()
-			comboleg.DesignatedLocation = msgBuf.readString()
-			comboleg.ExemptCode = msgBuf.readInt()
-			c.ComboLegs = append(c.ComboLegs, comboleg)
+		{
+			n := msgBuf.readInt()
+			c.ComboLegs = make([]ComboLeg, 0, n)
+			for ; n > 0; n-- {
+				comboleg := ComboLeg{}
+				comboleg.ContractID = msgBuf.readInt()
+				comboleg.Ratio = msgBuf.readInt()
+				comboleg.Action = msgBuf.readString()
+				comboleg.Exchange = msgBuf.readString()
+				comboleg.OpenClose = msgBuf.readInt()
+				comboleg.ShortSaleSlot = msgBuf.readInt()
+				comboleg.DesignatedLocation = msgBuf.readString()
+				comboleg.ExemptCode = msgBuf.readInt()
+				c.ComboLegs = append(c.ComboLegs, comboleg)
+			}
 		}
 
-		o.OrderComboLegs = []OrderComboLeg{} // TODO: pre set the cap
-		for orderComboLegsCount := msgBuf.readInt(); orderComboLegsCount > 0; orderComboLegsCount-- {
-			orderComboLeg := OrderComboLeg{}
-			orderComboLeg.Price = msgBuf.readFloatCheckUnset()
-			o.OrderComboLegs = append(o.OrderComboLegs, orderComboLeg)
+		{
+			n := msgBuf.readInt()
+			o.OrderComboLegs = make([]OrderComboLeg, 0, n)
+			for ; n > 0; n-- {
+				orderComboLeg := OrderComboLeg{}
+				orderComboLeg.Price = msgBuf.readFloatCheckUnset()
+				o.OrderComboLegs = append(o.OrderComboLegs, orderComboLeg)
+			}
 		}
+
 	}
 	if version >= 26 {
-		o.SmartComboRoutingParams = []TagValue{} // TODO: pre set the cap
-		for smartComboRoutingParamsCount := msgBuf.readInt(); smartComboRoutingParamsCount > 0; smartComboRoutingParamsCount-- {
+		n := msgBuf.readInt()
+		o.SmartComboRoutingParams = make([]TagValue, 0, n)
+		for ; n > 0; n-- {
 			tagValue := TagValue{}
 			tagValue.Tag = msgBuf.readString()
 			tagValue.Value = msgBuf.readString()
@@ -782,8 +785,9 @@ func (d *ibDecoder) processOpenOrder(msgBuf *MsgBuffer) {
 	if version >= 21 {
 		o.AlgoStrategy = msgBuf.readString()
 		if o.AlgoStrategy != "" {
-			o.AlgoParams = []TagValue{} // TODO: pre set the cap
-			for algoParamsCount := msgBuf.readInt(); algoParamsCount > 0; algoParamsCount-- {
+			n := msgBuf.readInt()
+			o.AlgoParams = make([]TagValue, 0, n)
+			for ; n > 0; n-- {
 				tagValue := TagValue{}
 				tagValue.Tag = msgBuf.readString()
 				tagValue.Value = msgBuf.readString()
@@ -841,9 +845,10 @@ func (d *ibDecoder) processOpenOrder(msgBuf *MsgBuffer) {
 		// ----------
 
 		// Conditions
-		o.Conditions = []OrderConditioner{}
-		if conditionsSize := msgBuf.readInt(); conditionsSize > 0 {
-			for ; conditionsSize > 0; conditionsSize-- {
+		n := msgBuf.readInt()
+		o.Conditions = make([]OrderConditioner, 0, n)
+		if n > 0 {
+			for ; n > 0; n-- {
 				conditionType := msgBuf.readInt()
 				cond, _ := InitOrderCondition(conditionType)
 				cond.decode(msgBuf)
@@ -954,11 +959,11 @@ func (d *ibDecoder) processContractDataMsg(msgBuf *MsgBuffer) {
 	lastTradeDateOrContractMonth := msgBuf.readString()
 	if lastTradeDateOrContractMonth != "" {
 		splitted := strings.Split(lastTradeDateOrContractMonth, " ")
-		if len(splitted) > 0 {
+		switch l := len(splitted); {
+		case l > 0:
 			cd.Contract.Expiry = splitted[0]
-		}
-
-		if len(splitted) > 1 {
+			fallthrough
+		case l > 1:
 			cd.LastTradeTime = splitted[1]
 		}
 	}
@@ -1005,8 +1010,9 @@ func (d *ibDecoder) processContractDataMsg(msgBuf *MsgBuffer) {
 		cd.EVMultiplier = msgBuf.readInt()
 	}
 	if v >= 7 {
-		cd.SecurityIDList = []TagValue{}
-		for secIDListCount := msgBuf.readInt(); secIDListCount > 0; secIDListCount-- {
+		n := msgBuf.readInt()
+		cd.SecurityIDList = make([]TagValue, 0, n)
+		for ; n > 0; n-- {
 			tagValue := TagValue{}
 			tagValue.Tag = msgBuf.readString()
 			tagValue.Value = msgBuf.readString()
@@ -1101,8 +1107,9 @@ func (d *ibDecoder) processBondContractDataMsg(msgBuf *MsgBuffer) {
 	}
 
 	if v >= 5 {
-		c.SecurityIDList = []TagValue{}
-		for secIDListCount := msgBuf.readInt(); secIDListCount > 0; secIDListCount-- {
+		n := msgBuf.readInt()
+		c.SecurityIDList = make([]TagValue, 0, n)
+		for ; n > 0; n-- {
 			tagValue := TagValue{}
 			tagValue.Tag = msgBuf.readString()
 			tagValue.Value = msgBuf.readString()
@@ -1124,7 +1131,7 @@ func (d *ibDecoder) processBondContractDataMsg(msgBuf *MsgBuffer) {
 func (d *ibDecoder) processScannerDataMsg(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	reqID := msgBuf.readInt()
-	for numofElements := msgBuf.readInt(); numofElements > 0; numofElements-- {
+	for n := msgBuf.readInt(); n > 0; n-- {
 		sd := ScanData{}
 		sd.ContractDetails = ContractDetails{}
 
@@ -1229,7 +1236,7 @@ func (d *ibDecoder) processHistoricalDataMsg(msgBuf *MsgBuffer) {
 	startDatestr := msgBuf.readString()
 	endDateStr := msgBuf.readString()
 
-	for itemCount := msgBuf.readInt(); itemCount > 0; itemCount-- {
+	for n := msgBuf.readInt(); n > 0; n-- {
 		bar := &BarData{}
 		bar.Date = msgBuf.readString()
 		bar.Open = msgBuf.readFloat()
@@ -1439,14 +1446,16 @@ func (d *ibDecoder) processSecurityDefinitionOptionParameterMsg(msgBuf *MsgBuffe
 	tradingClass := msgBuf.readString()
 	multiplier := msgBuf.readString()
 
-	expirations := []string{} // TODO: pre set the cap
-	for expCount := msgBuf.readInt(); expCount > 0; expCount-- {
+	expN := msgBuf.readInt()
+	expirations := make([]string, 0, expN)
+	for ; expN > 0; expN-- {
 		expiration := msgBuf.readString()
 		expirations = append(expirations, expiration)
 	}
 
-	strikes := []float64{} // TODO: pre set the cap
-	for strikeCount := msgBuf.readInt(); strikeCount > 0; strikeCount-- {
+	strikeN := msgBuf.readInt()
+	strikes := make([]float64, 0, strikeN)
+	for ; strikeN > 0; strikeN-- {
 		strike := msgBuf.readFloat()
 		strikes = append(strikes, strike)
 	}
@@ -1458,8 +1467,9 @@ func (d *ibDecoder) processSecurityDefinitionOptionParameterMsg(msgBuf *MsgBuffe
 func (d *ibDecoder) processSoftDollarTiersMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
-	tiers := []SoftDollarTier{}
-	for tierCount := msgBuf.readInt(); tierCount > 0; tierCount-- {
+	n := msgBuf.readInt()
+	tiers := make([]SoftDollarTier, 0, n)
+	for ; n > 0; n-- {
 		tier := SoftDollarTier{}
 		tier.Name = msgBuf.readString()
 		tier.Value = msgBuf.readString()
@@ -1472,9 +1482,9 @@ func (d *ibDecoder) processSoftDollarTiersMsg(msgBuf *MsgBuffer) {
 }
 
 func (d *ibDecoder) processFamilyCodesMsg(msgBuf *MsgBuffer) {
-	familyCodes := []FamilyCode{} // TODO: pre set the cap
-
-	for fcCount := msgBuf.readInt(); fcCount > 0; fcCount-- {
+	n := msgBuf.readInt()
+	familyCodes := make([]FamilyCode, 0, n)
+	for ; n > 0; n-- {
 		familyCode := FamilyCode{}
 		familyCode.AccountID = msgBuf.readString()
 		familyCode.FamilyCode = msgBuf.readString()
@@ -1487,8 +1497,10 @@ func (d *ibDecoder) processFamilyCodesMsg(msgBuf *MsgBuffer) {
 
 func (d *ibDecoder) processSymbolSamplesMsg(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
-	contractDescriptions := []ContractDescription{} // TODO: pre set the cap
-	for cdCount := msgBuf.readInt(); cdCount > 0; cdCount-- {
+
+	n := msgBuf.readInt()
+	contractDescriptions := make([]ContractDescription, 0, n)
+	for ; n > 0; n-- {
 		cd := ContractDescription{}
 		cd.Contract.ContractID = msgBuf.readInt()
 		cd.Contract.Symbol = msgBuf.readString()
@@ -1496,9 +1508,9 @@ func (d *ibDecoder) processSymbolSamplesMsg(msgBuf *MsgBuffer) {
 		cd.Contract.PrimaryExchange = msgBuf.readString()
 		cd.Contract.Currency = msgBuf.readString()
 
-		cd.DerivativeSecTypes = []string{}
-
-		for sdtCount := msgBuf.readInt(); sdtCount > 0; sdtCount-- {
+		sdtN := msgBuf.readInt()
+		cd.DerivativeSecTypes = make([]string, 0, sdtN)
+		for ; sdtN > 0; sdtN-- {
 			derivativeSecType := msgBuf.readString()
 			cd.DerivativeSecTypes = append(cd.DerivativeSecTypes, derivativeSecType)
 		}
@@ -1512,9 +1524,9 @@ func (d *ibDecoder) processSymbolSamplesMsg(msgBuf *MsgBuffer) {
 func (d *ibDecoder) processSmartComponents(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
-	smartComponents := []SmartComponent{}
-
-	for scmCount := msgBuf.readInt(); scmCount > 0; scmCount-- {
+	n := msgBuf.readInt()
+	smartComponents := make([]SmartComponent, 0, n)
+	for ; n > 0; n-- {
 		smartComponent := SmartComponent{}
 		smartComponent.BitNumber = msgBuf.readInt()
 		smartComponent.Exchange = msgBuf.readString()
@@ -1536,8 +1548,9 @@ func (d *ibDecoder) processTickReqParams(msgBuf *MsgBuffer) {
 }
 
 func (d *ibDecoder) processMktDepthExchanges(msgBuf *MsgBuffer) {
-	depthMktDataDescriptions := []DepthMktDataDescription{} // TODO: pre set the cap
-	for descCount := msgBuf.readInt(); descCount > 0; descCount-- {
+	n := msgBuf.readInt()
+	depthMktDataDescriptions := make([]DepthMktDataDescription, 0, n)
+	for ; n > 0; n-- {
 		desc := DepthMktDataDescription{}
 		desc.Exchange = msgBuf.readString()
 		desc.SecurityType = msgBuf.readString()
@@ -1574,8 +1587,9 @@ func (d *ibDecoder) processTickNews(msgBuf *MsgBuffer) {
 }
 
 func (d *ibDecoder) processNewsProviders(msgBuf *MsgBuffer) {
-	newsProviders := []NewsProvider{} // TODO: pre set the cap
-	for npCount := msgBuf.readInt(); npCount > 0; npCount-- {
+	n := msgBuf.readInt()
+	newsProviders := make([]NewsProvider, 0, n)
+	for ; n > 0; n-- {
 		provider := NewsProvider{}
 		provider.Name = msgBuf.readString()
 		provider.Code = msgBuf.readString()
@@ -1613,8 +1627,9 @@ func (d *ibDecoder) processHistoricalNewsEnd(msgBuf *MsgBuffer) {
 func (d *ibDecoder) processHistogramData(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
-	histogram := []HistogramData{} // TODO: pre set the cap
-	for pn := msgBuf.readInt(); pn > 0; pn-- {
+	n := msgBuf.readInt()
+	histogram := make([]HistogramData, 0, n)
+	for ; n > 0; n-- {
 		p := HistogramData{}
 		p.Price = msgBuf.readFloat()
 		p.Count = msgBuf.readInt()
@@ -1643,8 +1658,9 @@ func (d *ibDecoder) processRerouteMktDepthReq(msgBuf *MsgBuffer) {
 func (d *ibDecoder) processMarketRuleMsg(msgBuf *MsgBuffer) {
 	marketRuleID := msgBuf.readInt()
 
-	priceIncrements := []PriceIncrement{}
-	for n := msgBuf.readInt(); n > 0; n-- {
+	n := msgBuf.readInt()
+	priceIncrements := make([]PriceIncrement, 0, n)
+	for ; n > 0; n-- {
 		priceInc := PriceIncrement{}
 		priceInc.LowEdge = msgBuf.readFloat()
 		priceInc.Increment = msgBuf.readFloat()
@@ -1693,9 +1709,9 @@ func (d *ibDecoder) processPnLSingleMsg(msgBuf *MsgBuffer) {
 func (d *ibDecoder) processHistoricalTicks(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
-	ticks := []HistoricalTick{}
-
-	for tickCount := msgBuf.readInt(); tickCount > 0; tickCount-- {
+	n := msgBuf.readInt()
+	ticks := make([]HistoricalTick, 0, n)
+	for ; n > 0; n-- {
 		historicalTick := HistoricalTick{}
 		historicalTick.Time = msgBuf.readInt()
 		_ = msgBuf.readString()
@@ -1711,9 +1727,9 @@ func (d *ibDecoder) processHistoricalTicks(msgBuf *MsgBuffer) {
 func (d *ibDecoder) processHistoricalTicksBidAsk(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
-	ticks := []HistoricalTickBidAsk{}
-
-	for tickCount := msgBuf.readInt(); tickCount > 0; tickCount-- {
+	n := msgBuf.readInt()
+	ticks := make([]HistoricalTickBidAsk, 0, n)
+	for ; n > 0; n-- {
 		historicalTickBidAsk := HistoricalTickBidAsk{}
 		historicalTickBidAsk.Time = msgBuf.readInt()
 
@@ -1737,9 +1753,9 @@ func (d *ibDecoder) processHistoricalTicksBidAsk(msgBuf *MsgBuffer) {
 func (d *ibDecoder) processHistoricalTicksLast(msgBuf *MsgBuffer) {
 	reqID := msgBuf.readInt()
 
-	ticks := []HistoricalTickLast{}
-
-	for tickCount := msgBuf.readInt(); tickCount > 0; tickCount-- {
+	n := msgBuf.readInt()
+	ticks := make([]HistoricalTickLast, 0, n)
+	for ; n > 0; n-- {
 		historicalTickLast := HistoricalTickLast{}
 		historicalTickLast.Time = msgBuf.readInt()
 
@@ -1767,7 +1783,6 @@ func (d *ibDecoder) processTickByTickMsg(msgBuf *MsgBuffer) {
 
 	switch tickType {
 	case 0:
-		break
 	case 1, 2:
 		price := msgBuf.readFloat()
 		size := msgBuf.readInt()
@@ -1820,8 +1835,8 @@ func (d *ibDecoder) processMarketDepthL2Msg(msgBuf *MsgBuffer) {
 	side := msgBuf.readInt()
 	price := msgBuf.readFloat()
 	size := msgBuf.readInt()
-	isSmartDepth := false
 
+	isSmartDepth := false
 	if d.version >= mMIN_SERVER_VER_SMART_DEPTH {
 		isSmartDepth = msgBuf.readBool()
 	}
@@ -1966,8 +1981,9 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 	c.ComboLegsDescription = msgBuf.readString()
 
 	if version >= 29 {
-		c.ComboLegs = []ComboLeg{}
-		for comboLegsCount := msgBuf.readInt(); comboLegsCount > 0; comboLegsCount-- {
+		combolegN := msgBuf.readInt()
+		c.ComboLegs = make([]ComboLeg, 0, combolegN)
+		for ; combolegN > 0; combolegN-- {
 			// fmt.Println("comboLegsCount:", comboLegsCount)
 			comboleg := ComboLeg{}
 			comboleg.ContractID = msgBuf.readInt()
@@ -1981,8 +1997,9 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 			c.ComboLegs = append(c.ComboLegs, comboleg)
 		}
 
-		o.OrderComboLegs = []OrderComboLeg{}
-		for orderComboLegsCount := msgBuf.readInt(); orderComboLegsCount > 0; orderComboLegsCount-- {
+		orderComboLegN := msgBuf.readInt()
+		o.OrderComboLegs = make([]OrderComboLeg, 0, orderComboLegN)
+		for ; orderComboLegN > 0; orderComboLegN-- {
 			orderComboLeg := OrderComboLeg{}
 			orderComboLeg.Price = msgBuf.readFloatCheckUnset()
 			o.OrderComboLegs = append(o.OrderComboLegs, orderComboLeg)
@@ -1991,8 +2008,9 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 
 	//SmartComboRoutingParams
 	if version >= 26 {
-		o.SmartComboRoutingParams = []TagValue{}
-		for smartComboRoutingParamsCount := msgBuf.readInt(); smartComboRoutingParamsCount > 0; smartComboRoutingParamsCount-- {
+		n := msgBuf.readInt()
+		o.SmartComboRoutingParams = make([]TagValue, 0, n)
+		for ; n > 0; n-- {
 			tagValue := TagValue{}
 			tagValue.Tag = msgBuf.readString()
 			tagValue.Value = msgBuf.readString()
@@ -2054,8 +2072,9 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 	if version >= 21 {
 		o.AlgoStrategy = msgBuf.readString()
 		if o.AlgoStrategy != "" {
-			o.AlgoParams = []TagValue{}
-			for algoParamsCount := msgBuf.readInt(); algoParamsCount > 0; algoParamsCount-- {
+			n := msgBuf.readInt()
+			o.AlgoParams = make([]TagValue, 0, n)
+			for ; n > 0; n-- {
 				tagValue := TagValue{}
 				tagValue.Tag = msgBuf.readString()
 				tagValue.Value = msgBuf.readString()
@@ -2084,9 +2103,9 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 			o.ReferenceExchangeID = msgBuf.readString()
 		}
 
-		o.Conditions = []OrderConditioner{}
-		if conditionsSize := msgBuf.readInt(); conditionsSize > 0 {
-			for ; conditionsSize > 0; conditionsSize-- {
+		if n := msgBuf.readInt(); n > 0 {
+			o.Conditions = make([]OrderConditioner, 0, n)
+			for ; n > 0; n-- {
 				conditionType := msgBuf.readInt()
 				cond, _ := InitOrderCondition(conditionType)
 				cond.decode(msgBuf)

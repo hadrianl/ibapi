@@ -157,7 +157,7 @@ func makeMsgBytes(fields ...interface{}) []byte {
 	msg := bytes.Join(msgBytesSlice, nil)
 
 	// add the size header
-	sizeBytes := make([]byte, 4)
+	sizeBytes := make([]byte, 4, 4+len(msg))
 	binary.BigEndian.PutUint32(sizeBytes, uint32(len(msg)))
 
 	return append(sizeBytes, msg...)

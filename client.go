@@ -126,24 +126,27 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 5.send the err to done chan
 6.reset the IbClient
 */
-func (ic *IbClient) Disconnect() (err error) {
-	defer ic.reset()
-	defer log.Info("Disconnected!")
-
+func (ic *IbClient) Disconnect() error {
 	close(ic.terminatedSignal) // close make the term signal chan unblocked
 
-	if err = ic.conn.disconnect(); err != nil {
-		return
+	if err := ic.conn.disconnect(); err != nil {
+		return err
 	}
 
 	ic.wg.Wait()
-	ic.wrapper.ConnectionClosed()
 
-	if err = ic.err; err != nil {
-		return
+	// ConnectionClosed would be called right after IbClient was reset to default
+	// if you put your the reconnect code into ConnectionClosed
+	// you should reset params(such as connectOptions) -> connect -> handshake -> so on
+	defer ic.wrapper.ConnectionClosed()
+	defer ic.reset()
+	defer log.Info("Disconnected!")
+
+	if ic.err != nil {
+		return ic.err
 	}
 
-	return
+	return nil
 }
 
 // IsConnected check if there is a connection to TWS or GateWay

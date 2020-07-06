@@ -42,7 +42,8 @@ type IbClient struct {
 	errChan          chan error
 	msgChan          chan []byte
 	timeChan         chan time.Time
-	terminatedSignal chan int
+	terminatedSignal chan int  // signal to terminate the three goroutine
+	done             chan bool // done signal is delivered via disconnect
 	clientVersion    Version
 	serverVersion    Version
 	connTime         string
@@ -103,9 +104,7 @@ func (ic *IbClient) SetConnectionOptions(opts string) {
 // Connect try to connect the TWS or IB GateWay, after this, handshake should be call to get the connection done
 func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 
-	ic.host = host
-	ic.port = port
-	ic.clientID = clientID
+	ic.host, ic.port, ic.clientID = host, port, clientID
 	log.Debug("connect to client", zap.String("host", host), zap.Int("port", port), zap.Int64("clientID", clientID))
 	ic.setConnState(CONNECTING)
 	if err := ic.conn.connect(host, port); err != nil {
@@ -113,7 +112,8 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 		ic.reset()
 		return CONNECT_FAIL
 	}
-
+	// set done chan after connection is made
+	ic.done = make(chan bool)
 	return nil
 }
 
@@ -135,11 +135,13 @@ func (ic *IbClient) Disconnect() error {
 
 	ic.wg.Wait()
 
-	// ConnectionClosed would be called right after IbClient was reset to default
-	// if you put your the reconnect code into ConnectionClosed
-	// you should reset params(such as connectOptions) -> connect -> handshake -> so on
-	defer ic.wrapper.ConnectionClosed()
+	// should not reconnect IbClient in ConnectionClosed
+	// because reset would be called right after ConnectionClosed
+	defer func() {
+		ic.done <- true
+	}()
 	defer ic.reset()
+	defer ic.wrapper.ConnectionClosed()
 	defer log.Info("Disconnected!")
 
 	if ic.err != nil {
@@ -169,9 +171,7 @@ func (ic *IbClient) startAPI() error {
 		return err
 	}
 
-	err := ic.writer.Flush()
-
-	return err
+	return ic.writer.Flush()
 }
 
 // HandShake with the TWS or GateWay to ensure the version,
@@ -2871,8 +2871,8 @@ func (ic *IbClient) goReceive() {
 	default:
 		err := ic.scanner.Err()
 		switch err {
-		case nil:
-			err = errors.Wrap(io.EOF, "scanner Done")
+		case io.EOF:
+			err = errors.Wrap(err, "scanner Done")
 		case bufio.ErrTooLong:
 			errBytes := ic.scanner.Bytes()
 			ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, len(errBytes), errBytes))
@@ -2919,6 +2919,8 @@ decodeLoop:
 // ---------------------------------------------------------------------------------------
 
 // Run make the event loop run, all make sense after run!
+// Run is not blocked but just startup goRequest and goDecode
+// use LoopUntilDone instead to block the main routine
 func (ic *IbClient) Run() error {
 	if !ic.IsConnected() {
 		ic.wrapper.Error(NO_VALID_ID, NOT_CONNECTED.code, NOT_CONNECTED.msg)
@@ -2933,6 +2935,7 @@ func (ic *IbClient) Run() error {
 }
 
 // LoopUntilDone will call goroutines and block until the client context is done or the client is disconnected.
+// reconnection should do after this
 func (ic *IbClient) LoopUntilDone(fs ...func()) error {
 	for _, f := range fs {
 		go f()
@@ -2946,7 +2949,7 @@ func (ic *IbClient) LoopUntilDone(fs ...func()) error {
 	}()
 
 	select {
-	case <-ic.terminatedSignal:
+	case <-ic.done:
 		return ic.err
 	}
 

@@ -150,8 +150,35 @@ func TestClient(t *testing.T) {
 	// 		}
 	// 	}
 
-	// set 1 sec to see if the goroutine closed correctly
-	time.Sleep(time.Second)
+}
+
+func TestClientReconnect(t *testing.T) {
+	log, _ = zap.NewDevelopment() // log is default for production(json encode, info level), set to development(console encode, debug level) here
+	defer log.Sync()
+	runtime.GOMAXPROCS(4)
+
+	ic := NewIbClient(new(Wrapper))
+
+	for {
+		if err := ic.Connect("localhost", 7497, 0); err != nil {
+			log.Error("failed to connect, reconnect after 5 sec", zap.Error(err))
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		ic.SetConnectionOptions("+PACEAPI")
+
+		if err := ic.HandShake(); err != nil {
+			log.Error("failed to hand shake, reconnect after 5 sec", zap.Error(err))
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		ic.Run()
+		ic.LoopUntilDone(func() {
+			<-time.After(25 * time.Second) // block 25 sec and disconnect
+			ic.Disconnect()
+		})
+	}
 
 }
 

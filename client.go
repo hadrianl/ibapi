@@ -175,7 +175,8 @@ func (ic *IbClient) startAPI() error {
 }
 
 // HandShake with the TWS or GateWay to ensure the version,
-// sned the startApi header ,then receive serverVersion and connection time to comfirm the connection with TWS
+// send the startApi header ,then receive serverVersion
+// and connection time to comfirm the connection with TWS
 func (ic *IbClient) HandShake() error {
 	log.Info("try to handShake with TWS or GateWay")
 	var msg bytes.Buffer
@@ -340,25 +341,26 @@ Market Data
 */
 
 // ReqMktData Call this function to request market data.
+// The market data will be returned by the tickPrice and tickSize events.
 /*
-The market data will be returned by the tickPrice and tickSize events.
-reqId: TickerId - The ticker id. Must be a unique value. When the
-	market data returns, it will be identified by this tag. This is
-	also used when canceling the market data.
-contract:Contract - This structure contains a description of the
-	Contractt for which market data is being requested.
-genericTickList:str - A commma delimited list of generic tick types.
+@param reqID:
+	The ticker id must be a unique value. When the market data returns.
+	It will be identified by this tag. This is also used when canceling the market data.
+@param contract:
+	This structure contains a description of the Contractt for which market data is being requested.
+@param genericTickList:
+	A commma delimited list of generic tick types.
 	Tick types can be found in the Generic Tick Types page.
 	Prefixing w/ 'mdoff' indicates that top mkt data shouldn't tick.
 	You can specify the news source by postfixing w/ ':<source>.
 	Example: "mdoff,292:FLY+BRF"
-snapshot:bool - Check to return a single snapshot of Market data and
-	have the market data subscription cancel. Do not enter any
-	genericTicklist values if you use snapshots.
-regulatorySnapshot: bool - With the US Value Snapshot Bundle for stocks,
-	regulatory snapshots are available for 0.01 USD each.
-mktDataOptions:TagValueList - For internal use only.
-	Use default value XYZ.
+@param snapshot:
+	Check to return a single snapshot of Market data and have the market data subscription cancel.
+	Do not enter any genericTicklist values if you use snapshots.
+@param regulatorySnapshot:
+	With the US Value Snapshot Bundle for stocks, regulatory snapshots are available for 0.01 USD each.
+@param mktDataOptions:
+	For internal use only.Use default value XYZ.
 */
 func (ic *IbClient) ReqMktData(reqID int64, contract *Contract, genericTickList string, snapshot bool, regulatorySnapshot bool, mktDataOptions []TagValue) {
 	switch {
@@ -471,7 +473,7 @@ frozen market data after the close. Then, before the opening of the next
 trading day, market data will automatically switch back to real-time
 market data.
 
-marketDataType:int
+@param marketDataType:
 	1 -> realtime streaming market data
 	2 -> frozen market data
 	3 -> delayed market data
@@ -519,9 +521,8 @@ func (ic *IbClient) ReqMarketRule(marketRuleID int64) {
 
 // ReqTickByTickData request the tick-by-tick data.
 /*
-call this func to requst tick-by-tick data.Result will be delivered
+Call this func to requst tick-by-tick data.Result will be delivered
 via wrapper.TickByTickAllLast() wrapper.TickByTickBidAsk() wrapper.TickByTickMidPoint()
-
 */
 func (ic *IbClient) ReqTickByTickData(reqID int64, contract *Contract, tickType string, numberOfTicks int64, ignoreSize bool) {
 	if ic.serverVersion < mMIN_SERVER_VER_TICK_BY_TICK {
@@ -584,10 +585,14 @@ Call this function to calculate volatility for a supplied
 option price and underlying price. Result will be delivered
 via wrapper.TickOptionComputation()
 
-	reqId:TickerId -  The request id.
-	contract:Contract -  Describes the contract.
-	optionPrice:float64 - The price of the option.
-	underPrice:float64 - Price of the underlying.
+@param reqId:
+	The request id.
+@param contract:
+	Describes the contract.
+@param optionPrice:
+	The price of the option.
+@param underPrice:
+	Price of the underlying.
 */
 func (ic *IbClient) CalculateImpliedVolatility(reqID int64, contract *Contract, optionPrice float64, underPrice float64, impVolOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT {
@@ -649,10 +654,14 @@ Call this function to calculate price for a supplied
 option volatility and underlying price. Result will be delivered
 via wrapper.TickOptionComputation()
 
-	reqId:TickerId -  The request id.
-	contract:Contract -  Describes the contract.
-	volatility:float64 - The volatility of the option.
-	underPrice:float64 - Price of the underlying.
+@param	reqId:
+	The request id.
+@param	contract:
+	Describes the contract.
+@param	volatility:
+	The volatility of the option.
+@param	underPrice:
+	Price of the underlying.
 */
 func (ic *IbClient) CalculateOptionPrice(reqID int64, contract *Contract, volatility float64, underPrice float64, optPrcOptions []TagValue) {
 
@@ -727,20 +736,24 @@ func (ic *IbClient) CancelCalculateOptionPrice(reqID int64) {
 // ExerciseOptions exercise the options.
 /*
 call this func to exercise th options.
-	reqId:TickerId - The ticker id. multipleust be a unique value.
-	contract:Contract - This structure contains a description of the
-		contract to be exercised
-	exerciseAction:int - Specifies whether you want the option to lapse
-		or be exercised.
-		Values are 1 = exercise, 2 = lapse.
-	exerciseQuantity:int - The quantity you want to exercise.
-	account:str - destination account
-	override:int - Specifies whether your setting will override the system's
-		natural action. For example, if your action is "exercise" and the
-		option is not in-the-money, by natural action the option would not
-		exercise. If you have override set to "yes" the natural action would
-			be overridden and the out-of-the money option would be exercised.
-		Values are: 0 = no, 1 = yes.
+@param reqId:
+	The ticker id must be a unique value.
+@param	contract:
+	This structure contains a description of the contract to be exercised
+@param	exerciseAction:
+	Specifies whether you want the option to lapse or be exercised.
+	Values: 1 = exercise, 2 = lapse.
+@param	exerciseQuantity:
+	The quantity you want to exercise.
+@param	account:
+	destination account
+@param	override:
+	Specifies whether your setting will override the system's natural action.
+	For example, if your action is "exercise" and the option is not in-the-money,
+	by natural action the option would not exercise.
+	If you have override set to "yes" the natural action would be overridden
+	and the out-of-the money option would be exercised.
+	Values: 0 = no, 1 = yes.
 */
 func (ic *IbClient) ExerciseOptions(reqID int64, contract *Contract, exerciseAction int, exerciseQuantity int, account string, override int) {
 	if ic.serverVersion < mMIN_SERVER_VER_TRADING_CLASS && contract.TradingClass != "" {
@@ -793,12 +806,14 @@ func (ic *IbClient) ExerciseOptions(reqID int64, contract *Contract, exerciseAct
 //PlaceOrder place an order to tws or gateway
 /*
 Call this function to place an order. The order status will be returned by the orderStatus event.
-	orderId:OrderId - The order id.
-		You must specify a unique value. When the order START_APItus returns, it will be identified by this tag.This tag is also used when canceling the order.
-	contract:Contract - This structure contains a description of the contract which is being traded.
-	order:Order - This structure contains the details of tradedhe order.
-
-Note: Each client MUST connect with a unique clientId.
+@param orderId:
+	The order id.
+	You must specify a unique value. When the order START_APItus returns,
+	it will be identified by this tag.This tag is also used when canceling the order.
+@param contract:
+	This structure contains a description of the contract which is being traded.
+@param order:
+	This structure contains the details of tradedhe order.
 */
 func (ic *IbClient) PlaceOrder(orderID int64, contract *Contract, order *Order) {
 	switch v := ic.serverVersion; {
@@ -1369,7 +1384,7 @@ func (ic *IbClient) ReqIDs() {
 
 // ReqAccountUpdates request the account info.
 /*
-call this func to request the information of account,
+Call this func to request the information of account,
 or subscribe the update by setting param:subscribe true.
 Result will be delivered via wrapper.UpdateAccountValue() and wrapper.UpdateAccountTime().
 */
@@ -1383,58 +1398,59 @@ func (ic *IbClient) ReqAccountUpdates(subscribe bool, accName string) {
 
 // ReqAccountSummary request the account summary.
 /*
-Call this method to request and keep up to date the data that appears
-        on the TWS Account Window Summary tab. Result will be delivered via wrapper.AccountSummary().
+Call this method to request and keep up to date the data that appears on the TWS Account Window Summary tab.
+Result will be delivered via wrapper.AccountSummary().
+	Note: This request is designed for an FA managed account but can be used for any multi-account structure.
 
-        Note:   This request is designed for an FA managed account but can be
-        used for any multi-account structure.
-
-        reqId:int - The ID of the data request. Ensures that responses are matched
-            to requests If several requests are in process.
-        groupName:str - Set to All to returnrn account summary data for all
-            accounts, or set to a specific Advisor Account Group name that has
-            already been created in TWS Global Configuration.
-        tags:str - A comma-separated list of account tags.  Available tags are:
-            accountountType
-            NetLiquidation,
-            TotalCashValue - Total cash including futures pnl
-            SettledCash - For cash accounts, this is the same as
-            TotalCashValue
-            AccruedCash - Net accrued interest
-            BuyingPower - The maximum amount of marginable US stocks the
-                account can buy
-            EquityWithLoanValue - Cash + stocks + bonds + mutual funds
-            PreviousDayEquityWithLoanValue,
-            GrossPositionValue - The sum of the absolute value of all stock
-                and equity option positions
-            RegTEquity,
-            RegTMargin,
-            SMA - Special Memorandum Account
-            InitMarginReq,
-            MaintMarginReq,
-            AvailableFunds,
-            ExcessLiquidity,
-            Cushion - Excess liquidity as a percentage of net liquidation value
-            FullInitMarginReq,
-            FullMaintMarginReq,
-            FullAvailableFunds,
-            FullExcessLiquidity,
-            LookAheadNextChange - Time when look-ahead values take effect
-            LookAheadInitMarginReq,
-            LookAheadMaintMarginReq,
-            LookAheadAvailableFunds,
-            LookAheadExcessLiquidity,
-            HighestSeverity - A measure of how close the account is to liquidation
-            DayTradesRemaining - The Number of Open/Close trades a user
-                could put on before Pattern Day Trading is detected. A value of "-1"
-                means that the user can put on unlimited day trades.
-            Leverage - GrossPositionValue / NetLiquidation
-            $LEDGER - Single flag to relay all cash balance tags*, only in base
-                currency.
-            $LEDGER:CURRENCY - Single flag to relay all cash balance tags*, only in
-                the specified currency.
-            $LEDGER:ALL - Single flag to relay all cash balance tags* in all
-            currencies.
+@param reqId:
+	The ID of the data request. Ensures that responses are matched
+    to requests If several requests are in process.
+@param groupName:
+	Set to All to returnrn account summary data for all accounts,
+	or set to a specific Advisor Account Group name that has already been created in TWS Global Configuration.
+@param tags:
+	A comma-separated list of account tags.
+Available tags are:
+	accountountType
+	NetLiquidation,
+	TotalCashValue - Total cash including futures pnl
+	SettledCash - For cash accounts, this is the same as
+	TotalCashValue
+	AccruedCash - Net accrued interest
+	BuyingPower - The maximum amount of marginable US stocks the
+		account can buy
+	EquityWithLoanValue - Cash + stocks + bonds + mutual funds
+	PreviousDayEquityWithLoanValue,
+	GrossPositionValue - The sum of the absolute value of all stock
+		and equity option positions
+	RegTEquity,
+	RegTMargin,
+	SMA - Special Memorandum Account
+	InitMarginReq,
+	MaintMarginReq,
+	AvailableFunds,
+	ExcessLiquidity,
+	Cushion - Excess liquidity as a percentage of net liquidation value
+	FullInitMarginReq,
+	FullMaintMarginReq,
+	FullAvailableFunds,
+	FullExcessLiquidity,
+	LookAheadNextChange - Time when look-ahead values take effect
+	LookAheadInitMarginReq,
+	LookAheadMaintMarginReq,
+	LookAheadAvailableFunds,
+	LookAheadExcessLiquidity,
+	HighestSeverity - A measure of how close the account is to liquidation
+	DayTradesRemaining - The Number of Open/Close trades a user
+		could put on before Pattern Day Trading is detected. A value of "-1"
+		means that the user can put on unlimited day trades.
+	Leverage - GrossPositionValue / NetLiquidation
+	$LEDGER - Single flag to relay all cash balance tags*, only in base
+		currency.
+	$LEDGER:CURRENCY - Single flag to relay all cash balance tags*, only in
+		the specified currency.
+	$LEDGER:ALL - Single flag to relay all cash balance tags* in all
+	currencies.
 */
 func (ic *IbClient) ReqAccountSummary(reqID int64, groupName string, tags string) {
 	// v := 1
@@ -1602,13 +1618,13 @@ function. To view executions beyond the past 24 hours, open the
 Trade Log in TWS and, while the Trade Log is displayed, request
 the executions again from the API.
 
-	reqId:int - The ID of the data request. Ensures that responses are
-		matched to requests if several requests are in process.
-	execFilter:ExecutionFilter - This object contains attributes that
-		describe the filter criteria used to determine which execution
-		reports are returned.
+@param reqId:
+	The ID of the data request. Ensures that responses are matched to requests if several requests are in process.
+@param execFilter:
+	This object contains attributes that describe the filter criteria used to determine which execution reports are returned.
 
-	NOTE: Time format must be 'yyyymmdd-hh:mm:ss' Eg: '20030702-14:55'
+NOTE:
+	Time format must be 'yyyymmdd-hh:mm:ss' Eg: '20030702-14:55'
 */
 func (ic *IbClient) ReqExecutions(reqID int64, execFilter ExecutionFilter) {
 	// v := 3
@@ -1730,15 +1746,17 @@ direct-routed to an exchange and not smart-routed. The number of simultaneous
 market depth requests allowed in an account is calculated based on a formula
 that looks at an accounts equity, commissions, and quote booster packs.
 
-reqId:TickerId - The ticker id. Must be a unique value. When the market
-	depth data returns, it will be identified by this tag. This is
-	also used when canceling the market depth
-contract:Contact - This structure contains a description of the contract
-	for which market depth data is being requested.
-numRows:int - Specifies the numRowsumber of market depth rows to display.
-isSmartDepth:bool - specifies SMART depth request
-mktDepthOptions:TagValueList - For internal use only. Use default value
-	XYZ.
+@param reqId:
+	The ticker id must be a unique value. When the market depth data returns.
+	It will be identified by this tag. This is also used when canceling the market depth
+@param contract:
+	This structure contains a description of the contract for which market depth data is being requested.
+@param numRows:
+	Specifies the numRowsumber of market depth rows to display.
+@param isSmartDepth:
+	specifies SMART depth request
+@param mktDepthOptions:
+	For internal use only. Use default value XYZ.
 */
 func (ic *IbClient) ReqMktDepth(reqID int64, contract *Contract, numRows int, isSmartDepth bool, mktDepthOptions []TagValue) {
 	switch {
@@ -1836,9 +1854,9 @@ func (ic *IbClient) CancelMktDepth(reqID int64, isSmartDepth bool) {
 Call this function to start receiving news bulletins. Each bulletin
 will be returned by the updateNewsBulletin() event.
 
-	allMsgs:bool - If set to TRUE, returns all the existing bulletins for
-	the currencyent day and any new ones. If set to FALSE, will only
-	return new bulletins. "
+@param allMsgs:
+	If set to TRUE, returns all the existing bulletins for the currencyent day and any new ones.
+	If set to FALSE, will only return new bulletins.
 */
 func (ic *IbClient) ReqNewsBulletins(allMsgs bool) {
 	// v := 1
@@ -1868,7 +1886,8 @@ func (ic *IbClient) CancelNewsBulletins() {
 Call this function to request the list of managed accounts.
 Result will be delivered via wrapper.ManagedAccounts().
 
-    Note:  This request can only be made when connected to a FA managed account.
+Note:
+	This request can only be made when connected to a FA managed account.
 */
 func (ic *IbClient) ReqManagedAccts() {
 	// v := 1
@@ -1880,7 +1899,8 @@ func (ic *IbClient) ReqManagedAccts() {
 
 // RequestFA request fa.
 /*
-faData :  0->"N/A", 1->"GROUPS", 2->"PROFILES", 3->"ALIASES"
+@param faData:
+	0->"N/A", 1->"GROUPS", 2->"PROFILES", 3->"ALIASES"
 */
 func (ic *IbClient) RequestFA(faData int) {
 	// v := 1
@@ -1895,13 +1915,14 @@ func (ic *IbClient) RequestFA(faData int) {
 Call this function to modify FA configuration information from the
 API. Note that this can also be done manually in TWS itself.
 
-	faData:FaDataType - Specifies the type of Financial Advisor
-		configuration data beingingg requested. Valid values include:
-		1 = GROUPS
-		2 = PROFILE
-		3 = ACCOUNT ALIASES
-	cxml: str - The XML string containing the new FA configuration
-		information.
+@param faData:
+	Specifies the type of Financial Advisor configuration data beingingg requested.
+Valid values include:
+	1 = GROUPS
+	2 = PROFILE
+	3 = ACCOUNT ALIASES
+@param cxml:
+	The XML string containing the new FA configuration information.
 */
 func (ic *IbClient) ReplaceFA(faData int, cxml string) {
 	// v := 1
@@ -1923,55 +1944,61 @@ Requests contracts' historical data. When requesting historical data, a
 finishing time and date is required along with a duration string.
 Result will be delivered via wrapper.HistoricalData()
 
-	reqId:TickerId - The id of the request. Must be a unique value. When the
-		market data returns, it whatToShowill be identified by this tag. This is also
-		used when canceling the market data.
-	contract:Contract - This object contains a description of the contract for which
-		market data is being requested.
-	endDateTime:str - Defines a query end date and time at any point during the past 6 mos.
-		Valid values include any date/time within the past six months in the format:
-		yyyymmdd HH:mm:ss ttt
-
-		where "ttt" is the optional time zone.
-	durationStr:str - Set the query duration up to one week, using a time unit
-		of seconds, days or weeks. Valid values include any integer followed by a space
-		and then S (seconds), D (days) or W (week). If no unit is specified, seconds is used.
-	barSizeSetting:str - Specifies the size of the bars that will be returned (within IB/TWS listimits).
-		Valid values include:
-		1 sec
-		5 secs
-		15 secs
-		30 secs
-		1 min
-		2 mins
-		3 mins
-		5 mins
-		15 mins
-		30 mins
-		1 hour
-		1 day
-	whatToShow:str - Determines the nature of data beinging extracted. Valid values include:
-
-		TRADES
-		MIDPOINT
-		BID
-		ASK
-		BID_ASK
-		HISTORICAL_VOLATILITY
-		OPTION_IMPLIED_VOLATILITY
-	useRTH:int - Determines whether to return all data available during the requested time span,
-		or only data that falls within regular trading hours. Valid values include:
-
-		0 - all data is returned even where the market in question was outside of its
-		regular trading hours.
-		1 - only data within the regular trading hours is returned, even if the
-		requested time span falls partially or completely outside of the RTH.
-	formatDate: int - Determines the date format applied to returned bars. validd values include:
-
-		1 - dates applying to bars returned in the format: yyyymmdd{space}{space}hh:mm:dd
-		2 - dates are returned as a long integer specifying the number of seconds since
-			1/1/1970 GMT.
-	chartOptions:TagValueList - For internal use only. Use default value XYZ.
+@param reqId:
+	The id of the request. Must be a unique value.
+	When the market data returns, it whatToShowill be identified by this tag.
+	This is also used when canceling the market data.
+@param contract:
+	This object contains a description of the contract for which market data is being requested.
+@param endDateTime:
+	Defines a query end date and time at any point during the past 6 mos.
+	Valid values include any date/time within the past six months in the format:
+	yyyymmdd HH:mm:ss ttt where "ttt" is the optional time zone.
+@param durationStr:
+	Set the query duration up to one week, using a time unit of seconds, days or weeks.
+	Valid values include any integer followed by a space and then S (seconds), D (days) or W (week).
+	If no unit is specified, seconds is used.
+@param barSizeSetting:
+	Specifies the size of the bars that will be returned (within IB/TWS listimits).
+Valid values include:
+	1 sec
+	5 secs
+	15 secs
+	30 secs
+	1 min
+	2 mins
+	3 mins
+	5 mins
+	15 mins
+	30 mins
+	1 hour
+	1 day
+@param whatToShow:
+	Determines the nature of data beinging extracted.
+Valid values include:
+	TRADES
+	MIDPOINT
+	BID
+	ASK
+	BID_ASK
+	HISTORICAL_VOLATILITY
+	OPTION_IMPLIED_VOLATILITY
+@param useRTH:
+	Determines whether to return all data available during the requested time span,
+	or only data that falls within regular trading hours.
+Valid values include:
+	0 - all data is returned even where the market in question was outside of its
+	regular trading hours.
+	1 - only data within the regular trading hours is returned, even if the
+	requested time span falls partially or completely outside of the RTH.
+@param formatDate:
+	Determines the date format applied to returned bars.
+Valid values include:
+	1 - dates applying to bars returned in the format: yyyymmdd{space}{space}hh:mm:dd
+	2 - dates are returned as a long integer specifying the number of seconds since
+		1/1/1970 GMT.
+@param chartOptions:
+	For internal use only. Use default value XYZ.
 */
 func (ic *IbClient) ReqHistoricalData(reqID int64, contract *Contract, endDateTime string, duration string, barSize string, whatToShow string, useRTH bool, formatDate int, keepUpToDate bool, chartOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_TRADING_CLASS {
@@ -2056,7 +2083,8 @@ Used if an internet disconnect has occurred or the results of a query
 are otherwise delayed and the application is no longer interested in receiving
 the data.
 
-	reqId:TickerId - The ticker ID. Must be a unique value.
+@param reqId:
+	The ticker ID must be a unique value.
 */
 func (ic *IbClient) CancelHistoricalData(reqID int64) {
 	// v := 1
@@ -2216,11 +2244,12 @@ func (ic *IbClient) ReqScannerParameters() {
 // ReqScannerSubscription subcribes a scanner that matched the subcription.
 /*
 call this func to subcribe a scanner which could scan the market.
-	reqId:int - The ticker ID. Must be a unique value.
-	scannerSubscription:ScannerSubscription - This structure contains
-		possible parameters used to filter results.
-	scannerSubscriptionOptions:TagValue - For internal use only.
-		Use default value XYZ.
+@param reqId:
+	The ticker ID must be a unique value.
+@param scannerSubscription:
+	This structure contains possible parameters used to filter results.
+@param scannerSubscriptionOptions:
+	For internal use only.Use default value XYZ.
 */
 func (ic *IbClient) ReqScannerSubscription(reqID int64, subscription *ScannerSubscription, scannerSubscriptionOptions []TagValue, scannerSubscriptionFilterOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_SCANNER_GENERIC_OPTS {
@@ -2302,27 +2331,33 @@ func (ic *IbClient) CancelScannerSubscription(reqID int64) {
 call this func to start receiving real time bar.
 Result will be delivered via wrapper.RealtimeBar().
 
-	reqId:TickerId - The Id for the request. Must be a unique value. When the
-		data is received, it will be identified by this Id. This is also
-		used when canceling the request.
-	contract:Contract - This object contains a description of the contract
-		for which real time bars are being requested
-	barSize:int - Currently only 5 second bars are supported, if any other
-		value is used, an exception will be thrown.
-	whatToShow:str - Determines the nature of the data extracted. Valid
-		values include:
-		TRADES
-		BID
-		ASK
-		MIDPOINT
-	useRTH:bool - Regular Trading Hours only. Valid values include:
-		0 = all data available during the time span requested is returned,
-			including time intervals when the market in question was
-			outside of regular trading hours.
-		1 = only data within the regular trading hours for the product
-			requested is returned, even if the time time span falls
-			partially or completely outside.
-	realTimeBarOptions:[]TagValue - For internal use only. Use default value XYZ.
+@param reqId:
+	The Id for the request. Must be a unique value.
+	When the data is received, it will be identified by this Id.
+	This is also used when canceling the request.
+@param contract:
+	This object contains a description of the contract for which real time bars are being requested
+@param barSize:
+	Currently only 5 second bars are supported, if any other
+	value is used, an exception will be thrown.
+@param whatToShow:
+	Determines the nature of the data extracted.
+Valid values include:
+	TRADES
+	BID
+	ASK
+	MIDPOINT
+@param useRTH:
+	Regular Trading Hours only.
+Valid values include:
+	0 = all data available during the time span requested is returned,
+		including time intervals when the market in question was
+		outside of regular trading hours.
+	1 = only data within the regular trading hours for the product
+		requested is returned, even if the time time span falls
+		partially or completely outside.
+@param realTimeBarOptions:
+	For internal use only. Use default value XYZ.
 */
 func (ic *IbClient) ReqRealTimeBars(reqID int64, contract *Contract, barSize int, whatToShow string, useRTH bool, realTimeBarsOptions []TagValue) {
 	if ic.serverVersion < mMIN_SERVER_VER_TRADING_CLASS && contract.TradingClass != "" {
@@ -2404,11 +2439,12 @@ but not tradingClass or multiplier. This is because this func
 is used only for stocks and stocks do not have a multiplier and
 trading class.
 
-	reqId:tickerId - The ID of the data request. Ensures that responses are
-			matched to requests if several requests are in process.
-	contract:Contract - This structure contains a description of the
-		contract for which fundamental data is being requested.
-	reportType:str - One of the following XML reports:
+@param reqId:
+	The ID of the data request. Ensures that responses are matched to requests if several requests are in process.
+@param contract:
+	This structure contains a description of the contract for which fundamental data is being requested.
+@param reportType:
+	One of the following XML reports:
 		ReportSnapshot (company overview)
 		ReportsFinSummary (financial summary)
 		ReportRatios (financial ratios)
@@ -2582,8 +2618,11 @@ func (ic *IbClient) QueryDisplayGroups(reqID int64) {
 // SubscribeToGroupEvents subcribe the group events.
 /*
 call this func to subcribe the group event which is triggered by TWS
-reqId:int - The unique number associated with the notification.
-groupId:int - The ID of the group, currently it is a number from 1 to 7.
+
+@param reqId:
+	The unique number associated with the notification.
+@param groupId:
+	The ID of the group, currently it is a number from 1 to 7.
 	This is the display group subscription request sent by the API to TWS.
 */
 func (ic *IbClient) SubscribeToGroupEvents(reqID int64, groupID int) {
@@ -2602,14 +2641,16 @@ func (ic *IbClient) SubscribeToGroupEvents(reqID int64, groupID int) {
 // UpdateDisplayGroup update the display group in TWS.
 /*
 call this func to change the display group in TWS.
-	reqId:int - The requestId specified in subscribeToGroupEvents().
-	contractInfo:string - The encoded value that uniquely represents the
-		contract in IB. Possible values include:
 
-		none = empty selection
-		contractID@exchange - any non-combination contract.
-			Examples: 8314@SMART for IBM SMART; 8314@ARCA for IBM @ARCA.
-		combo = if any combo is selected.
+@param reqId:
+	The requestId specified in subscribeToGroupEvents().
+@param contractInfo:
+	The encoded value that uniquely represents the contract in IB.
+Possible values include:
+	none = empty selection
+	contractID@exchange - any non-combination contract.
+		Examples: 8314@SMART for IBM SMART; 8314@ARCA for IBM @ARCA.
+	combo = if any combo is selected.
 */
 func (ic *IbClient) UpdateDisplayGroup(reqID int64, contractInfo string) {
 	if ic.serverVersion < mMIN_SERVER_VER_LINKING {

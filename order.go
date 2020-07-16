@@ -338,7 +338,7 @@ func NewLimitOrder(action string, lmtPrice float64, quantity float64) *Order {
 
 func NewMarketOrder(action string, quantity float64) *Order {
 	o := NewOrder()
-	o.OrderType = "LMT"
+	o.OrderType = "MKT"
 	o.Action = action
 	o.TotalQuantity = quantity
 

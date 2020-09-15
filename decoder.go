@@ -1898,7 +1898,6 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 	o.Origin = msgBuf.readInt()
 
 	o.OrderRef = msgBuf.readString()
-	o.ClientID = msgBuf.readInt()
 	o.PermID = msgBuf.readInt()
 
 	o.OutsideRTH = msgBuf.readBool()
@@ -1955,13 +1954,9 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 
 	if version >= 27 && o.DeltaNeutralOrderType != "" {
 		o.DeltaNeutralContractID = msgBuf.readInt()
-		o.DeltaNeutralSettlingFirm = msgBuf.readString()
-		o.DeltaNeutralClearingAccount = msgBuf.readString()
-		o.DeltaNeutralClearingIntent = msgBuf.readString()
 	}
 
 	if version >= 31 && o.DeltaNeutralOrderType != "" {
-		o.DeltaNeutralOpenClose = msgBuf.readString()
 		o.DeltaNeutralShortSale = msgBuf.readBool()
 		o.DeltaNeutralShortSaleSlot = msgBuf.readInt()
 		o.DeltaNeutralDesignatedLocation = msgBuf.readString()
@@ -1972,14 +1967,12 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 
 	//TrailParams
 	o.TrailStopPrice = msgBuf.readFloatCheckUnset()
-
 	if version >= 30 {
 		o.TrailingPercent = msgBuf.readFloatCheckUnset() //show_unset
 	}
 
 	//ComboLegs
 	c.ComboLegsDescription = msgBuf.readString()
-
 	if version >= 29 {
 		combolegN := msgBuf.readInt()
 		c.ComboLegs = make([]ComboLeg, 0, combolegN)
@@ -2047,11 +2040,6 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 		}
 	}
 
-	// if version >= 25 {
-	// 	o.OptOutSmartRouting = decodeBool(f[68])
-	// 	f = f[1:]
-	// }
-
 	o.ClearingAccount = msgBuf.readString()
 	o.ClearingIntent = msgBuf.readString()
 
@@ -2059,6 +2047,7 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 		o.NotHeld = msgBuf.readBool()
 	}
 
+	// DeltaNeutral
 	if version >= 20 {
 		deltaNeutralContractPresent := msgBuf.readBool()
 		if deltaNeutralContractPresent {
@@ -2089,12 +2078,14 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 
 	orderState.Status = msgBuf.readString()
 
+	// VolRandomizeFlags
 	if version >= 34 {
 		o.RandomizeSize = msgBuf.readBool()
 		o.RandomizePrice = msgBuf.readBool()
 	}
 
 	if d.version >= mMIN_SERVER_VER_PEGGED_TO_BENCHMARK {
+		// PegToBenchParams
 		if o.OrderType == "PEG BENCH" {
 			o.ReferenceContractID = msgBuf.readInt()
 			o.IsPeggedChangeAmountDecrease = msgBuf.readBool()
@@ -2103,6 +2094,7 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 			o.ReferenceExchangeID = msgBuf.readString()
 		}
 
+		// Conditions
 		if n := msgBuf.readInt(); n > 0 {
 			o.Conditions = make([]OrderConditioner, 0, n)
 			for ; n > 0; n-- {
@@ -2117,6 +2109,7 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 		}
 	}
 
+	// StopPriceAndLmtPriceOffset
 	o.TrailStopPrice = msgBuf.readFloat()
 	o.LimitPriceOffset = msgBuf.readFloat()
 

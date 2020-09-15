@@ -45,20 +45,20 @@ func TestClient(t *testing.T) {
 	ic.ReqAllOpenOrders()
 	ic.ReqPositions()
 	// ic.CancelPositions()
-	ic.ReqAccountUpdatesMulti(ic.GetReqID(), "DU1382837", "", true)
+	// ic.ReqAccountUpdatesMulti(ic.GetReqID(), "DU1382837", "", true)
 	// ic.CancelAccountUpdatesMulti()
-	ic.ReqPositionsMulti(ic.GetReqID(), "DU1382837", "")
+	// ic.ReqPositionsMulti(ic.GetReqID(), "DU1382837", "")
 	// ic.CancelPositionsMulti()
-	tags := []string{"AccountType", "NetLiquidation", "TotalCashValue", "SettledCash",
-		"AccruedCash", "BuyingPower", "EquityWithLoanValue",
-		"PreviousEquityWithLoanValue", "GrossPositionValue", "ReqTEquity",
-		"ReqTMargin", "SMA", "InitMarginReq", "MaintMarginReq", "AvailableFunds",
-		"ExcessLiquidity", "Cushion", "FullInitMarginReq", "FullMaintMarginReq",
-		"FullAvailableFunds", "FullExcessLiquidity", "LookAheadNextChange",
-		"LookAheadInitMarginReq", "LookAheadMaintMarginReq",
-		"LookAheadAvailableFunds", "LookAheadExcessLiquidity",
-		"HighestSeverity", "DayTradesRemaining", "Leverage", "$LEDGER:ALL"}
-	ic.ReqAccountSummary(ic.GetReqID(), "All", strings.Join(tags, ","))
+	// tags := []string{"AccountType", "NetLiquidation", "TotalCashValue", "SettledCash",
+	// 	"AccruedCash", "BuyingPower", "EquityWithLoanValue",
+	// 	"PreviousEquityWithLoanValue", "GrossPositionValue", "ReqTEquity",
+	// 	"ReqTMargin", "SMA", "InitMarginReq", "MaintMarginReq", "AvailableFunds",
+	// 	"ExcessLiquidity", "Cushion", "FullInitMarginReq", "FullMaintMarginReq",
+	// 	"FullAvailableFunds", "FullExcessLiquidity", "LookAheadNextChange",
+	// 	"LookAheadInitMarginReq", "LookAheadMaintMarginReq",
+	// 	"LookAheadAvailableFunds", "LookAheadExcessLiquidity",
+	// 	"HighestSeverity", "DayTradesRemaining", "Leverage", "$LEDGER:ALL"}
+	// ic.ReqAccountSummary(ic.GetReqID(), "All", strings.Join(tags, ","))
 	// ic.CancelAccountSummary()
 
 	// ########################## request market data #################################################
@@ -89,9 +89,9 @@ func TestClient(t *testing.T) {
 	// ic.ReqHistoricalData(ic.GetReqID(), hsiSpread, "", "4800 S", "1 min", "TRADES", false, 1, false, nil)
 
 	// ######################### request contract ############################################################
-	hsi := Contract{Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
-	ic.ReqContractDetails(ic.GetReqID(), &hsi)
-	ic.ReqMatchingSymbols(ic.GetReqID(), "IB")
+	// hsi := Contract{Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
+	// ic.ReqContractDetails(ic.GetReqID(), &hsi)
+	// ic.ReqMatchingSymbols(ic.GetReqID(), "IB")
 
 	// ######################### market scanner #############################################################
 	// ic.ReqScannerParameters()
@@ -114,20 +114,21 @@ func TestClient(t *testing.T) {
 
 	// ############################ others #########################################################################
 
-	ic.ReqFamilyCodes()
+	// ic.ReqFamilyCodes()
 	// ic.ReqScannerParameters()
-	ic.ReqManagedAccts()
-	ic.ReqSoftDollarTiers(ic.GetReqID())
-	ic.ReqNewsProviders()
-	ic.ReqMarketDataType(1)
-	ic.ReqPnLSingle(ic.GetReqID(), "DU1382837", "", 351872027)
-	ic.ReqNewsBulletins(true)
-	ic.ReqSmartComponents(ic.GetReqID(), "a6")
-	ic.ReqMktDepthExchanges()
-	ic.ReqMatchingSymbols(ic.GetReqID(), "HSI")
-	ic.ReqSecDefOptParams(ic.GetReqID(), "HSI", "", "IND", 1328298)
-	ic.ReqGlobalCancel()
-	ic.ReqIDs()
+	// ic.ReqManagedAccts()
+	// ic.ReqSoftDollarTiers(ic.GetReqID())
+	// ic.ReqNewsProviders()
+	// ic.ReqMarketDataType(1)
+	// ic.ReqPnLSingle(ic.GetReqID(), "DU1382837", "", 351872027)
+	// ic.ReqNewsBulletins(true)
+	// ic.ReqSmartComponents(ic.GetReqID(), "a6")
+	// ic.ReqMktDepthExchanges()
+	// ic.ReqMatchingSymbols(ic.GetReqID(), "HSI")
+	// ic.ReqSecDefOptParams(ic.GetReqID(), "HSI", "", "IND", 1328298)
+	// ic.ReqGlobalCancel()
+	// ic.ReqIDs()
+	ic.ReqCompletedOrders(false)
 	// lmtOrder := NewLimitOrder("BUY", 26640, 1)
 	// mktOrder := NewMarketOrder("BUY", 1)
 	// ic.PlaceOrder(ibwrapper.GetNextOrderID(), &hsi1909, lmtOrder)

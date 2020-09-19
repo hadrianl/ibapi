@@ -195,7 +195,7 @@ type Order struct {
 	Shareholder          string
 	ImbalanceOnly        bool
 	RouteMarketableToBbo bool
-	ParenPermID          int64
+	ParentPermID         int64
 	UsePriceMgmtAlgo     bool
 
 	SoftDollarTier SoftDollarTier

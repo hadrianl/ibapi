@@ -2132,7 +2132,7 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 	o.Shareholder = msgBuf.readString()
 	o.ImbalanceOnly = msgBuf.readBool()
 	o.RouteMarketableToBbo = msgBuf.readBool()
-	o.ParenPermID = msgBuf.readInt()
+	o.ParentPermID = msgBuf.readInt()
 
 	orderState.CompletedTime = msgBuf.readString()
 	orderState.CompletedStatus = msgBuf.readString()

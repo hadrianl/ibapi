@@ -16,7 +16,7 @@ type ibDecoder struct {
 	wrapper       IbWrapper
 	version       Version
 	msgID2process map[IN]func(*MsgBuffer)
-	errChan       chan error
+	// errChan       chan error
 }
 
 func (d *ibDecoder) setVersion(version Version) {
@@ -34,13 +34,14 @@ func (d *ibDecoder) interpret(msgBytes []byte) {
 		return
 	}
 
-	// if decode error ocours,handle the error
-	defer func() {
-		if err := recover(); err != nil {
-			log.Error("failed to decode", zap.Error(err.(error)))
-			d.errChan <- err.(error)
-		}
-	}()
+	// try not to handle the error produced by decoder and wrapper, user should be responsible for this
+	// // if decode error ocours,handle the error
+	// defer func() {
+	// 	if err := recover(); err != nil {
+	// 		log.Error("failed to decode", zap.Error(err.(error)))
+	// 		d.errChan <- err.(error)
+	// 	}
+	// }()
 
 	// log.Debug("interpret", zap.Binary("MsgBytes", msgBuf.Bytes()))
 
@@ -156,7 +157,8 @@ func (d *ibDecoder) setmsgID2process() {
 		mTICK_BY_TICK:                             d.processTickByTickMsg,
 		mORDER_BOUND:                              d.processOrderBoundMsg,
 		mCOMPLETED_ORDER:                          d.processCompletedOrderMsg,
-		mCOMPLETED_ORDERS_END:                     d.processCompletedOrdersEndMsg}
+		mCOMPLETED_ORDERS_END:                     d.processCompletedOrdersEndMsg,
+		mREPLACE_FA_END:                           d.processReplaceFAEndMsg}
 
 }
 
@@ -2144,4 +2146,11 @@ func (d *ibDecoder) processCompletedOrderMsg(msgBuf *MsgBuffer) {
 
 func (d *ibDecoder) processCompletedOrdersEndMsg(msgBuf *MsgBuffer) {
 	d.wrapper.CompletedOrdersEnd()
+}
+
+func (d *ibDecoder) processReplaceFAEndMsg(msgBuf *MsgBuffer) {
+	reqID := msgBuf.readInt()
+	text := msgBuf.readString()
+
+	d.wrapper.ReplaceFAEnd(reqID, text)
 }

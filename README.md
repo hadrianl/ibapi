@@ -5,7 +5,7 @@ style="display: block; margin: 0 auto;"
 src="http://interactivebrokers.github.io/tws-api/nav_iblogo.png"
 />
 
-* Interactive Brokers API 9.79
+* Interactive Brokers API 9.80
 * pure golang Implement
 * Unofficial, use at you own risk
 

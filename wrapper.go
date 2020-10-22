@@ -92,6 +92,7 @@ type IbWrapper interface {
 	CommissionReport(commissionReport CommissionReport)
 	ConnectAck()
 	ConnectionClosed()
+	ReplaceFAEnd(reqID int64, text string)
 }
 
 // Wrapper is the default wrapper provided by this golang implement.
@@ -667,4 +668,8 @@ func (w Wrapper) CompletedOrder(contract *Contract, order *Order, orderState *Or
 
 func (w Wrapper) CompletedOrdersEnd() {
 	log.Info("<CompletedOrdersEnd>:")
+}
+
+func (w Wrapper) ReplaceFAEnd(reqID int64, text string) {
+	log.With(zap.Int64("reqID", reqID)).Info("<ReplaceFAEnd>", zap.String("text", text))
 }

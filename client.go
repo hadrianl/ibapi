@@ -182,15 +182,14 @@ func (ic *IbClient) HandShake() error {
 	var msg bytes.Buffer
 	var msgBytes []byte
 	head := []byte("API\x00")
-	minVer := []byte(strconv.FormatInt(int64(MIN_CLIENT_VER), 10))
-	maxVer := []byte(strconv.FormatInt(int64(MAX_CLIENT_VER), 10))
 
-	connectOptions := []byte{}
+	connectOptions := ""
 	if ic.connectOptions != "" {
-		connectOptions = []byte(" " + ic.connectOptions)
+		connectOptions = " " + ic.connectOptions
 	}
 
-	clientVersion := bytes.Join([][]byte{[]byte("v"), minVer, []byte(".."), maxVer, connectOptions}, nil)
+	clientVersion := []byte(fmt.Sprintf("v%d..%d%s", MIN_CLIENT_VER, MAX_CLIENT_VER, connectOptions))
+
 	sizeofCV := make([]byte, 4)
 	binary.BigEndian.PutUint32(sizeofCV, uint32(len(clientVersion)))
 
@@ -222,7 +221,7 @@ func (ic *IbClient) HandShake() error {
 
 	// Init Decoder
 	ic.decoder.setVersion(ic.serverVersion)
-	ic.decoder.errChan = make(chan error, 100)
+	// ic.decoder.errChan = make(chan error, 100)
 	ic.decoder.setmsgID2process()
 
 	log.Info("init info", zap.Int("serverVersion", ic.serverVersion))
@@ -2852,7 +2851,9 @@ func (ic *IbClient) goRequest() {
 		if err := recover(); err != nil {
 			log.Error("requester got unexpected error", zap.Error(err.(error)))
 			ic.err = err.(error)
-			ic.Disconnect()
+			// ic.Disconnect()
+			log.Info("try to restart requester")
+			go ic.goRequest()
 		}
 	}()
 	defer log.Info("requester end")
@@ -2891,7 +2892,9 @@ func (ic *IbClient) goReceive() {
 		if err := recover(); err != nil {
 			log.Error("receiver got unexpected error", zap.Error(err.(error)))
 			ic.err = err.(error)
-			ic.Disconnect()
+			// ic.Disconnect()
+			log.Info("try to restart receiver")
+			go ic.goReceive()
 		}
 	}()
 	defer log.Info("receiver end")
@@ -2910,18 +2913,19 @@ func (ic *IbClient) goReceive() {
 	select {
 	case <-ic.terminatedSignal:
 	default:
-		err := ic.scanner.Err()
-		switch err {
+		switch err := ic.scanner.Err(); err {
 		case io.EOF:
 			err = errors.Wrap(err, "scanner Done")
+			ic.Disconnect()
 		case bufio.ErrTooLong:
 			errBytes := ic.scanner.Bytes()
 			ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, len(errBytes), errBytes))
 			err = errors.Wrap(err, BAD_LENGTH.msg)
+			panic(err)
 		default:
 			err = errors.Wrap(err, "scanner Error")
+			panic(err)
 		}
-		panic(err)
 	}
 
 }
@@ -2933,7 +2937,9 @@ func (ic *IbClient) goDecode() {
 		if err := recover(); err != nil {
 			log.Error("decoder got unexpected error", zap.Error(err.(error)))
 			ic.err = err.(error)
-			ic.Disconnect()
+			// ic.Disconnect()
+			log.Info("try to restart decoder")
+			go ic.goDecode()
 		}
 	}()
 	defer log.Info("decoder end")
@@ -2948,8 +2954,8 @@ decodeLoop:
 			ic.decoder.interpret(m)
 		case e := <-ic.errChan:
 			log.Error("got client error in decode loop", zap.Error(e))
-		case e := <-ic.decoder.errChan:
-			ic.wrapper.Error(NO_VALID_ID, BAD_MESSAGE.code, BAD_MESSAGE.msg+e.Error())
+		// case e := <-ic.decoder.errChan:
+		// 	ic.wrapper.Error(NO_VALID_ID, BAD_MESSAGE.code, BAD_MESSAGE.msg+e.Error())
 		case <-ic.terminatedSignal:
 			break decodeLoop
 		}

@@ -92,6 +92,7 @@ const (
 	mORDER_BOUND                              IN = 100
 	mCOMPLETED_ORDER                          IN = 101
 	mCOMPLETED_ORDERS_END                     IN = 102
+	mREPLACE_FA_END                           IN = 103
 )
 
 const (
@@ -269,9 +270,10 @@ const (
 	mMIN_SERVER_VER_ENCODE_MSG_ASCII7          Version = 153
 	mMIN_SERVER_VER_SEND_ALL_FAMILY_CODES      Version = 154
 	mMIN_SERVER_VER_NO_DEFAULT_OPEN_CLOSE      Version = 155
+	mMIN_SERVER_VER_REPLACE_FA_END             Version = 157
 
-	MIN_CLIENT_VER = 100
-	MAX_CLIENT_VER = mMIN_SERVER_VER_NO_DEFAULT_OPEN_CLOSE
+	MIN_CLIENT_VER Version = 100
+	MAX_CLIENT_VER Version = mMIN_SERVER_VER_REPLACE_FA_END
 )
 
 // tick const

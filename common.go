@@ -209,7 +209,7 @@ type DepthMktDataDescription struct {
 func (d DepthMktDataDescription) String() string {
 	aggGroup := ""
 	if d.AggGroup != UNSETINT {
-		aggGroup = string(d.AggGroup)
+		aggGroup = fmt.Sprint(d.AggGroup)
 	}
 
 	return fmt.Sprintf("DepthMktDataDescription<Exchange: %s, SecType: %s, ListingExchange: %s, ServiceDataType: %s, AggGroup: %s>",

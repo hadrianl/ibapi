@@ -114,53 +114,70 @@ func scanFields(data []byte, atEOF bool) (advance int, token []byte, err error) 
 	return totalSize, data[4:totalSize], nil
 }
 
-func field2Bytes(field interface{}) []byte {
-	// var bs []byte
-	bs := make([]byte, 0, 9)
+// func field2Bytes(field interface{}) []byte {
+// 	// var bs []byte
+// 	bs := make([]byte, 0, 9)
 
-	switch v := field.(type) {
+// 	switch v := field.(type) {
 
-	case int64:
-		bs = encodeInt64(v)
-	case float64:
-		bs = encodeFloat64(v)
-	case string:
-		bs = encodeString(v)
-	case bool:
-		bs = encodeBool(v)
-	case int:
-		bs = encodeInt(v)
-	case []byte:
-		bs = v
+// 	case int64:
+// 		bs = encodeInt64(v)
+// 	case float64:
+// 		bs = encodeFloat64(v)
+// 	case string:
+// 		bs = encodeString(v)
+// 	case bool:
+// 		bs = encodeBool(v)
+// 	case int:
+// 		bs = encodeInt(v)
+// 	case []byte:
+// 		bs = v
 
-	// case time.Time:
-	// 	b = encodeTime(msg.(time.Time))
+// 	// case time.Time:
+// 	// 	b = encodeTime(msg.(time.Time))
 
-	default:
-		log.Panic("failed to covert the field", zap.Reflect("field", field))
-	}
+// 	default:
+// 		log.Panic("failed to covert the field", zap.Reflect("field", field))
+// 	}
 
-	return append(bs, '\x00')
-}
+// 	return append(bs, fieldSplit)
+// }
 
 // makeMsgBytes is a universal way to make the request ,but not an efficient way
 // TODO: do some test and improve!!!
 func makeMsgBytes(fields ...interface{}) []byte {
 
-	// make the whole the slice of msgBytes
-	msgBytesSlice := make([][]byte, 0, len(fields))
+	msgBytes := make([]byte, 4, 8*len(fields)+4) // pre alloc memory
+
 	for _, f := range fields {
-		// make the field into msgBytes
-		msgBytes := field2Bytes(f)
-		msgBytesSlice = append(msgBytesSlice, msgBytes)
+		switch v := f.(type) {
+		case int64:
+			msgBytes = strconv.AppendInt(msgBytes, v, 10)
+		case float64:
+			msgBytes = strconv.AppendFloat(msgBytes, v, 'g', 10, 64)
+		case string:
+			msgBytes = append(msgBytes, []byte(v)...)
+		case bool:
+			if v {
+				msgBytes = append(msgBytes, '1')
+			} else {
+				msgBytes = append(msgBytes, '0')
+			}
+		case int:
+			msgBytes = strconv.AppendInt(msgBytes, int64(v), 10)
+		case []byte:
+			msgBytes = append(msgBytes, v...)
+		default:
+			log.Panic("failed to covert the field", zap.Reflect("field", f)) // never reach here
+		}
+
+		msgBytes = append(msgBytes, fieldSplit)
 	}
-	msg := bytes.Join(msgBytesSlice, nil)
 
 	// add the size header
-	sizeBytes := make([]byte, 4, 4+len(msg))
-	binary.BigEndian.PutUint32(sizeBytes, uint32(len(msg)))
+	binary.BigEndian.PutUint32(msgBytes, uint32(len(msgBytes)-4))
 
-	return append(sizeBytes, msg...)
+	return msgBytes
 }
 
 func splitMsgBytes(data []byte) [][]byte {
@@ -183,29 +200,29 @@ func decodeString(field []byte) string {
 	return string(field)
 }
 
-func encodeInt64(i int64) []byte {
-	return []byte(strconv.FormatInt(i, 10))
-}
+// func encodeInt64(i int64) []byte {
+// 	return []byte(strconv.FormatInt(i, 10))
+// }
 
-func encodeInt(i int) []byte {
-	return []byte(strconv.Itoa(i))
-}
+// func encodeInt(i int) []byte {
+// 	return []byte(strconv.Itoa(i))
+// }
 
-func encodeFloat64(f float64) []byte {
-	return []byte(strconv.FormatFloat(f, 'g', 10, 64))
-}
+// func encodeFloat64(f float64) []byte {
+// 	return []byte(strconv.FormatFloat(f, 'g', 10, 64))
+// }
 
-func encodeString(str string) []byte {
-	return []byte(str)
-}
+// func encodeString(str string) []byte {
+// 	return []byte(str)
+// }
 
-func encodeBool(b bool) []byte {
-	if b {
-		return []byte{'1'}
-	}
-	return []byte{'0'}
+// func encodeBool(b bool) []byte {
+// 	if b {
+// 		return []byte{'1'}
+// 	}
+// 	return []byte{'0'}
 
-}
+// }
 
 func handleEmpty(d interface{}) string {
 	switch v := d.(type) {
@@ -254,7 +271,7 @@ func InitDefault(o interface{}) {
 			case "true":
 				v.Field(i).SetBool(true)
 			default:
-				panic("Unknown defaultValue:")
+				log.Panic("Unknown defaultValue", zap.Reflect("default", v))
 			}
 		}
 

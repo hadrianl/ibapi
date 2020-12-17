@@ -326,6 +326,7 @@ func NewOrder() *Order {
 	return order
 }
 
+// NewLimitOrder create a limit order with action, limit price and quantity
 func NewLimitOrder(action string, lmtPrice float64, quantity float64) *Order {
 	o := NewOrder()
 	o.OrderType = "LMT"
@@ -336,6 +337,7 @@ func NewLimitOrder(action string, lmtPrice float64, quantity float64) *Order {
 	return o
 }
 
+// NewMarketOrder create a market order with action and quantity
 func NewMarketOrder(action string, quantity float64) *Order {
 	o := NewOrder()
 	o.OrderType = "MKT"

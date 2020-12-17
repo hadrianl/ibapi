@@ -1367,7 +1367,7 @@ func (d *ibDecoder) processDeltaNeutralValidationMsg(msgBuf *MsgBuffer) {
 func (d *ibDecoder) processCommissionReportMsg(msgBuf *MsgBuffer) {
 	_ = msgBuf.readString()
 	cr := CommissionReport{}
-	cr.ExecId = msgBuf.readString()
+	cr.ExecID = msgBuf.readString()
 	cr.Commission = msgBuf.readFloat()
 	cr.Currency = msgBuf.readString()
 	cr.RealizedPNL = msgBuf.readFloat()

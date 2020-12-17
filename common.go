@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// Account
+// Account ...
 type Account struct {
 	Name string
 }
@@ -23,11 +23,11 @@ func (t TickAttrib) String() string {
 		t.PreOpen)
 }
 
-// AlgoParams
+// AlgoParams ...
 type AlgoParams struct {
 }
 
-// TagValue
+// TagValue ...
 type TagValue struct {
 	Tag   string
 	Value string
@@ -37,7 +37,7 @@ func (tv TagValue) String() string {
 	return fmt.Sprintf("TagValue<%s=%s>", tv.Tag, tv.Value)
 }
 
-// OrderComboLeg
+// OrderComboLeg ...
 type OrderComboLeg struct {
 	Price float64 `default:"UNSETFLOAT"`
 }
@@ -47,10 +47,11 @@ func (o OrderComboLeg) String() string {
 }
 
 // ------------ComboLeg--------------------
-// ComboLegOpenClose
+
+// ComboLegOpenClose ...
 type ComboLegOpenClose int64
 
-// ComboLegShortSaleSlot
+// ComboLegShortSaleSlot ...
 type ComboLegShortSaleSlot int64
 
 const (
@@ -62,7 +63,7 @@ const (
 	ThirdParty                           = 2
 )
 
-// ComboLeg
+// ComboLeg ...
 type ComboLeg struct {
 	ContractID int64
 	Ratio      int64
@@ -90,7 +91,7 @@ func (c ComboLeg) String() string {
 
 // -----------------------------------------------------
 
-// ExecutionFilter
+// ExecutionFilter ...
 type ExecutionFilter struct {
 	ClientID     int64
 	AccountCode  string
@@ -101,7 +102,7 @@ type ExecutionFilter struct {
 	Side         string
 }
 
-// BarData
+// BarData ...
 type BarData struct {
 	Date     string
 	Open     float64
@@ -125,7 +126,7 @@ func (b BarData) String() string {
 		b.BarCount)
 }
 
-// RealTimeBar
+// RealTimeBar ...
 type RealTimeBar struct {
 	Time    int64
 	endTime int64
@@ -150,9 +151,9 @@ func (rb RealTimeBar) String() string {
 		rb.Count)
 }
 
-// CommissionReport
+// CommissionReport ...
 type CommissionReport struct {
-	ExecId              string
+	ExecID              string
 	Commission          float64
 	Currency            string
 	RealizedPNL         float64
@@ -162,7 +163,7 @@ type CommissionReport struct {
 
 func (cr CommissionReport) String() string {
 	return fmt.Sprintf("CommissionReport<ExecId: %v, Commission: %v%s, RealizedPnL: %v, Yield: %v, YieldRedemptionDate: %v>",
-		cr.ExecId,
+		cr.ExecID,
 		cr.Commission,
 		cr.Currency,
 		cr.RealizedPNL,
@@ -170,7 +171,7 @@ func (cr CommissionReport) String() string {
 		cr.YieldRedemptionDate)
 }
 
-// FamilyCode
+// FamilyCode ...
 type FamilyCode struct {
 	AccountID  string
 	FamilyCode string
@@ -182,7 +183,7 @@ func (f FamilyCode) String() string {
 		f.FamilyCode)
 }
 
-// SmartComponent
+// SmartComponent ...
 type SmartComponent struct {
 	BitNumber      int64
 	Exchange       string
@@ -196,7 +197,7 @@ func (s SmartComponent) String() string {
 		s.ExchangeLetter)
 }
 
-// DepthMktDataDescription
+// DepthMktDataDescription ...
 type DepthMktDataDescription struct {
 	Exchange        string
 	SecurityType    string
@@ -205,7 +206,7 @@ type DepthMktDataDescription struct {
 	AggGroup        int64 `default:"UNSETINT"`
 }
 
-// DepthMktDataDescription
+// DepthMktDataDescription ...
 func (d DepthMktDataDescription) String() string {
 	aggGroup := ""
 	if d.AggGroup != UNSETINT {
@@ -220,7 +221,7 @@ func (d DepthMktDataDescription) String() string {
 		aggGroup)
 }
 
-// NewsProvider
+// NewsProvider ...
 type NewsProvider struct {
 	Code string
 	Name string
@@ -232,7 +233,7 @@ func (np NewsProvider) String() string {
 		np.Name)
 }
 
-// HistogramData
+// HistogramData ...
 type HistogramData struct {
 	Price float64
 	Count int64
@@ -244,7 +245,7 @@ func (hgd HistogramData) String() string {
 		hgd.Count)
 }
 
-// PriceIncrement
+// PriceIncrement ...
 type PriceIncrement struct {
 	LowEdge   float64
 	Increment float64
@@ -292,7 +293,7 @@ func (h HistoricalTickBidAsk) String() string {
 		h.SizeAsk)
 }
 
-// TickAttribBidAsk
+// TickAttribBidAsk ...
 type TickAttribBidAsk struct {
 	BidPastLow  bool
 	AskPastHigh bool
@@ -325,7 +326,7 @@ func (h HistoricalTickLast) String() string {
 		h.SpecialConditions)
 }
 
-// TickAttribLast
+// TickAttribLast ...
 type TickAttribLast struct {
 	PastLimit  bool
 	Unreported bool

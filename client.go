@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -13,7 +14,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -437,7 +437,7 @@ func (ic *IbClient) ReqMktData(reqID int64, contract *Contract, genericTickList 
 
 	if ic.serverVersion >= mMIN_SERVER_VER_LINKING {
 		if len(mktDataOptions) > 0 {
-			panic("not supported")
+			log.Panic("not supported")
 		}
 		fields = append(fields, "")
 	}
@@ -1812,7 +1812,7 @@ func (ic *IbClient) ReqMktDepth(reqID int64, contract *Contract, numRows int, is
 	if ic.serverVersion >= mMIN_SERVER_VER_LINKING {
 		//current doc says this part if for "internal use only" -> won't support it
 		if len(mktDepthOptions) > 0 {
-			panic("not supported")
+			log.Panic("not supported")
 		}
 
 		fields = append(fields, "")
@@ -2848,9 +2848,10 @@ func (ic *IbClient) ReqCompletedOrders(apiOnly bool) {
 func (ic *IbClient) goRequest() {
 	log.Info("requester start")
 	defer func() {
-		if err := recover(); err != nil {
-			log.Error("requester got unexpected error", zap.Error(err.(error)))
-			ic.err = err.(error)
+		if errMsg := recover(); errMsg != nil {
+			err := errors.New(errMsg.(string))
+			log.Error("requester got unexpected error", zap.Error(err))
+			ic.err = err
 			// ic.Disconnect()
 			log.Info("try to restart requester")
 			go ic.goRequest()
@@ -2889,9 +2890,10 @@ requestLoop:
 func (ic *IbClient) goReceive() {
 	log.Info("receiver start")
 	defer func() {
-		if err := recover(); err != nil {
-			log.Error("receiver got unexpected error", zap.Error(err.(error)))
-			ic.err = err.(error)
+		if errMsg := recover(); errMsg != nil {
+			err := errors.New(errMsg.(string))
+			log.Error("receiver got unexpected error", zap.Error(err))
+			ic.err = err
 			// ic.Disconnect()
 			log.Info("try to restart receiver")
 			go ic.goReceive()
@@ -2915,16 +2917,14 @@ func (ic *IbClient) goReceive() {
 	default:
 		switch err := ic.scanner.Err(); err {
 		case io.EOF:
-			err = errors.Wrap(err, "scanner Done")
+			log.Info("scanner Done", zap.Error(err))
 			ic.Disconnect()
 		case bufio.ErrTooLong:
 			errBytes := ic.scanner.Bytes()
 			ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, len(errBytes), errBytes))
-			err = errors.Wrap(err, BAD_LENGTH.msg)
-			panic(err)
+			log.Panic(BAD_LENGTH.msg, zap.Error(err))
 		default:
-			err = errors.Wrap(err, "scanner Error")
-			panic(err)
+			log.Panic("scanner Error", zap.Error(err))
 		}
 	}
 
@@ -2934,9 +2934,10 @@ func (ic *IbClient) goReceive() {
 func (ic *IbClient) goDecode() {
 	log.Info("decoder start")
 	defer func() {
-		if err := recover(); err != nil {
-			log.Error("decoder got unexpected error", zap.Error(err.(error)))
-			ic.err = err.(error)
+		if errMsg := recover(); errMsg != nil {
+			err := errors.New(errMsg.(string))
+			log.Error("decoder got unexpected error", zap.Error(err))
+			ic.err = err
 			// ic.Disconnect()
 			log.Info("try to restart decoder")
 			go ic.goDecode()

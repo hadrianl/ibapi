@@ -202,7 +202,7 @@ func (d *ibDecoder) wrapUpdateAccountTime(msgBuf *MsgBuffer) {
 	// time.
 	t, err := time.ParseInLocation("04:05", ts, time.Local)
 	if err != nil {
-		panic(err)
+		log.Panic("failed to parse account time", zap.Error(err))
 	}
 	t = t.AddDate(today.Year(), int(today.Month())-1, today.Day()-1)
 

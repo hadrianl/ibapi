@@ -961,11 +961,12 @@ func (d *ibDecoder) processContractDataMsg(msgBuf *MsgBuffer) {
 	lastTradeDateOrContractMonth := msgBuf.readString()
 	if lastTradeDateOrContractMonth != "" {
 		splitted := strings.Split(lastTradeDateOrContractMonth, " ")
-		switch l := len(splitted); {
-		case l > 0:
+		l := len(splitted)
+
+		if l > 0 {
 			cd.Contract.Expiry = splitted[0]
-			fallthrough
-		case l > 1:
+		}
+		if l > 1 {
 			cd.LastTradeTime = splitted[1]
 		}
 	}

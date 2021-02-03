@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"sync"
@@ -2916,9 +2915,9 @@ func (ic *IbClient) goReceive() {
 	case <-ic.terminatedSignal:
 	default:
 		switch err := ic.scanner.Err(); err {
-		case io.EOF:
+		case nil:
 			log.Info("scanner Done", zap.Error(err))
-			ic.Disconnect()
+			go ic.Disconnect()
 		case bufio.ErrTooLong:
 			errBytes := ic.scanner.Bytes()
 			ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, len(errBytes), errBytes))

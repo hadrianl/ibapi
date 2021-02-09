@@ -126,11 +126,11 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 6.reset the IbClient
 */
 func (ic *IbClient) Disconnect() error {
-	close(ic.terminatedSignal) // close make the term signal chan unblocked
-
 	if err := ic.conn.disconnect(); err != nil {
 		return err
 	}
+
+	close(ic.terminatedSignal) // close make the term signal chan unblocked
 
 	ic.wg.Wait()
 
@@ -143,11 +143,7 @@ func (ic *IbClient) Disconnect() error {
 	defer ic.wrapper.ConnectionClosed()
 	defer log.Info("Disconnected!")
 
-	if ic.err != nil {
-		return ic.err
-	}
-
-	return nil
+	return ic.err
 }
 
 // IsConnected check if there is a connection to TWS or GateWay
@@ -2896,6 +2892,12 @@ func (ic *IbClient) goReceive() {
 			// ic.Disconnect()
 			log.Info("try to restart receiver")
 			go ic.goReceive()
+		} else {
+			select {
+			case <-ic.terminatedSignal:
+			default:
+				ic.Disconnect()
+			}
 		}
 	}()
 	defer log.Info("receiver end")
@@ -2916,8 +2918,8 @@ func (ic *IbClient) goReceive() {
 	default:
 		switch err := ic.scanner.Err(); err {
 		case nil:
-			log.Info("scanner Done", zap.Error(err))
-			go ic.Disconnect()
+			log.Info("scanner Done")
+			// go ic.Disconnect()
 		case bufio.ErrTooLong:
 			errBytes := ic.scanner.Bytes()
 			ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, len(errBytes), errBytes))

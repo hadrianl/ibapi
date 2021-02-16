@@ -76,7 +76,7 @@ func (ic *IbClient) ConnState() int {
 func (ic *IbClient) setConnState(connState int) {
 	preState := ic.conn.state
 	ic.conn.state = connState
-	log.Debug("connection state is changed", zap.Int("previous", preState), zap.Int("current", connState))
+	log.Debug("change connection state", zap.Int("previous", preState), zap.Int("current", connState))
 }
 
 // GetReqID before request data or place order
@@ -105,7 +105,7 @@ func (ic *IbClient) SetConnectionOptions(opts string) {
 func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 
 	ic.host, ic.port, ic.clientID = host, port, clientID
-	log.Debug("connect to client", zap.String("host", host), zap.Int("port", port), zap.Int64("clientID", clientID))
+	log.Info("Connect to client", zap.String("host", host), zap.Int("port", port), zap.Int64("clientID", clientID))
 	ic.setConnState(CONNECTING)
 	if err := ic.conn.connect(host, port); err != nil {
 		ic.wrapper.Error(NO_VALID_ID, CONNECT_FAIL.code, CONNECT_FAIL.msg)
@@ -127,6 +127,7 @@ func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 6.reset the IbClient
 */
 func (ic *IbClient) Disconnect() error {
+	log.Debug("close terminatedSignal chan")
 	close(ic.terminatedSignal) // close make the term signal chan unblocked
 
 	if err := ic.conn.disconnect(); err != nil {
@@ -178,7 +179,7 @@ func (ic *IbClient) startAPI() error {
 // send the startApi header ,then receive serverVersion
 // and connection time to comfirm the connection with TWS
 func (ic *IbClient) HandShake() error {
-	log.Info("try to handShake with TWS or GateWay")
+	log.Info("HandShake with TWS or GateWay")
 	var msg bytes.Buffer
 	var msgBytes []byte
 	head := []byte("API\x00")
@@ -197,7 +198,7 @@ func (ic *IbClient) HandShake() error {
 	msg.Write(head)
 	msg.Write(sizeofCV)
 	msg.Write(clientVersion)
-	log.Info("handShake init...")
+	log.Debug("send handShake header", zap.Binary("header", msg.Bytes()))
 	if _, err := ic.writer.Write(msg.Bytes()); err != nil {
 		return err
 	}
@@ -206,7 +207,7 @@ func (ic *IbClient) HandShake() error {
 		return err
 	}
 
-	log.Debug("recv server init Info")
+	log.Debug("recv handShake Info")
 
 	// scan once to get server info
 	if !ic.scanner.Scan() {
@@ -224,8 +225,8 @@ func (ic *IbClient) HandShake() error {
 	// ic.decoder.errChan = make(chan error, 100)
 	ic.decoder.setmsgID2process()
 
-	log.Info("init info", zap.Int("serverVersion", ic.serverVersion))
-	log.Info("init info", zap.String("connectionTime", ic.connTime))
+	log.Info("handShake info", zap.Int("serverVersion", ic.serverVersion))
+	log.Info("handShake info", zap.String("connectionTime", ic.connTime))
 
 	// send startAPI to tell server that client is ready
 	if err := ic.startAPI(); err != nil {
@@ -273,6 +274,7 @@ comfirmReadyLoop:
 		}
 	}
 
+	log.Info("HandShake completed")
 	return nil
 }
 

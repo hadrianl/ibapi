@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"sync"
@@ -145,11 +144,7 @@ func (ic *IbClient) Disconnect() error {
 	defer ic.wrapper.ConnectionClosed()
 	defer log.Info("Disconnected!")
 
-	if ic.err != nil {
-		return ic.err
-	}
-
-	return nil
+	return ic.err
 }
 
 // IsConnected check if there is a connection to TWS or GateWay
@@ -2899,6 +2894,12 @@ func (ic *IbClient) goReceive() {
 			// ic.Disconnect()
 			log.Debug("try to restart receiver")
 			go ic.goReceive()
+		} else {
+			select {
+			case <-ic.terminatedSignal:
+			default:
+				ic.Disconnect()
+			}
 		}
 	}()
 	defer log.Debug("receiver end")
@@ -2918,9 +2919,9 @@ func (ic *IbClient) goReceive() {
 	case <-ic.terminatedSignal:
 	default:
 		switch err := ic.scanner.Err(); err {
-		case io.EOF:
-			log.Debug("scanner Done", zap.Error(err))
-			ic.Disconnect()
+		case nil:
+			log.Debug("scanner Done")
+			// go ic.Disconnect()
 		case bufio.ErrTooLong:
 			errBytes := ic.scanner.Bytes()
 			ic.wrapper.Error(NO_VALID_ID, BAD_LENGTH.code, fmt.Sprintf("%s:%d:%s", BAD_LENGTH.msg, len(errBytes), errBytes))

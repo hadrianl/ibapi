@@ -56,7 +56,7 @@ func (ibconn *IbConnection) reset() {
 }
 
 func (ibconn *IbConnection) disconnect() error {
-	log.Info("conn disconnect",
+	log.Debug("conn disconnect",
 		zap.Int("nMsgSent", ibconn.numMsgSent),
 		zap.Int("nBytesSent", ibconn.numBytesSent),
 		zap.Int("nMsgRecv", ibconn.numMsgRecv),

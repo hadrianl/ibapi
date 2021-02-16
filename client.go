@@ -76,7 +76,7 @@ func (ic *IbClient) ConnState() int {
 func (ic *IbClient) setConnState(connState int) {
 	preState := ic.conn.state
 	ic.conn.state = connState
-	log.Info("connection state is changed", zap.Int("previous", preState), zap.Int("current", connState))
+	log.Debug("connection state is changed", zap.Int("previous", preState), zap.Int("current", connState))
 }
 
 // GetReqID before request data or place order
@@ -87,7 +87,7 @@ func (ic *IbClient) GetReqID() int64 {
 // SetWrapper setup the Wrapper
 func (ic *IbClient) SetWrapper(wrapper IbWrapper) {
 	ic.wrapper = wrapper
-	log.Info("set wrapper", zap.Reflect("wrapper", wrapper))
+	log.Debug("set wrapper", zap.Reflect("wrapper", wrapper))
 	ic.decoder = ibDecoder{wrapper: ic.wrapper}
 }
 
@@ -287,7 +287,7 @@ func (ic *IbClient) ConnectionTime() string {
 }
 
 func (ic *IbClient) reset() {
-	log.Info("reset ibClient")
+	log.Debug("reset ibClient")
 	ic.reqIDSeq = 0
 	ic.conn = &IbConnection{}
 	ic.host = ""
@@ -2846,18 +2846,18 @@ func (ic *IbClient) ReqCompletedOrders(apiOnly bool) {
 
 //goRequest will get the req from reqChan and send it to TWS
 func (ic *IbClient) goRequest() {
-	log.Info("requester start")
+	log.Debug("requester start")
 	defer func() {
 		if errMsg := recover(); errMsg != nil {
 			err := errors.New(errMsg.(string))
 			log.Error("requester got unexpected error", zap.Error(err))
 			ic.err = err
 			// ic.Disconnect()
-			log.Info("try to restart requester")
+			log.Debug("try to restart requester")
 			go ic.goRequest()
 		}
 	}()
-	defer log.Info("requester end")
+	defer log.Debug("requester end")
 	defer ic.wg.Done()
 
 	ic.wg.Add(1)
@@ -2888,18 +2888,18 @@ requestLoop:
 //goReceive receive the msg from the socket, get the fields and put them into msgChan
 //goReceive handle the msgBuf which is different from the offical.Not continuously read, but split first and then decode
 func (ic *IbClient) goReceive() {
-	log.Info("receiver start")
+	log.Debug("receiver start")
 	defer func() {
 		if errMsg := recover(); errMsg != nil {
 			err := errors.New(errMsg.(string))
 			log.Error("receiver got unexpected error", zap.Error(err))
 			ic.err = err
 			// ic.Disconnect()
-			log.Info("try to restart receiver")
+			log.Debug("try to restart receiver")
 			go ic.goReceive()
 		}
 	}()
-	defer log.Info("receiver end")
+	defer log.Debug("receiver end")
 	defer ic.wg.Done()
 
 	ic.wg.Add(1)
@@ -2917,7 +2917,7 @@ func (ic *IbClient) goReceive() {
 	default:
 		switch err := ic.scanner.Err(); err {
 		case io.EOF:
-			log.Info("scanner Done", zap.Error(err))
+			log.Debug("scanner Done", zap.Error(err))
 			ic.Disconnect()
 		case bufio.ErrTooLong:
 			errBytes := ic.scanner.Bytes()
@@ -2932,18 +2932,18 @@ func (ic *IbClient) goReceive() {
 
 //goDecode decode the fields received from the msgChan
 func (ic *IbClient) goDecode() {
-	log.Info("decoder start")
+	log.Debug("decoder start")
 	defer func() {
 		if errMsg := recover(); errMsg != nil {
 			err := errors.New(errMsg.(string))
 			log.Error("decoder got unexpected error", zap.Error(err))
 			ic.err = err
 			// ic.Disconnect()
-			log.Info("try to restart decoder")
+			log.Debug("try to restart decoder")
 			go ic.goDecode()
 		}
 	}()
-	defer log.Info("decoder end")
+	defer log.Debug("decoder end")
 	defer ic.wg.Done()
 
 	ic.wg.Add(1)

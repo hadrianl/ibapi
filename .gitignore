@@ -1,2 +1,5 @@
 debug.test
 .vscode
+
+.idea
+.idea/*

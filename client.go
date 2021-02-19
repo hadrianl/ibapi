@@ -104,7 +104,7 @@ func (ic *IbClient) SetConnectionOptions(opts string) {
 func (ic *IbClient) Connect(host string, port int, clientID int64) error {
 
 	ic.host, ic.port, ic.clientID = host, port, clientID
-	log.Info("Connect to client", zap.String("host", host), zap.Int("port", port), zap.Int64("clientID", clientID))
+	log.Debug("Connect to client", zap.String("host", host), zap.Int("port", port), zap.Int64("clientID", clientID))
 	ic.setConnState(CONNECTING)
 	if err := ic.conn.connect(host, port); err != nil {
 		ic.wrapper.Error(NO_VALID_ID, CONNECT_FAIL.code, CONNECT_FAIL.msg)
@@ -174,7 +174,7 @@ func (ic *IbClient) startAPI() error {
 // send the startApi header ,then receive serverVersion
 // and connection time to comfirm the connection with TWS
 func (ic *IbClient) HandShake() error {
-	log.Info("HandShake with TWS or GateWay")
+	log.Debug("HandShake with TWS or GateWay")
 	var msg bytes.Buffer
 	var msgBytes []byte
 	head := []byte("API\x00")
@@ -220,8 +220,8 @@ func (ic *IbClient) HandShake() error {
 	// ic.decoder.errChan = make(chan error, 100)
 	ic.decoder.setmsgID2process()
 
-	log.Info("handShake info", zap.Int("serverVersion", ic.serverVersion))
-	log.Info("handShake info", zap.String("connectionTime", ic.connTime))
+	log.Debug("handShake info", zap.Int("serverVersion", ic.serverVersion))
+	log.Debug("handShake info", zap.String("connectionTime", ic.connTime))
 
 	// send startAPI to tell server that client is ready
 	if err := ic.startAPI(); err != nil {
@@ -269,7 +269,7 @@ comfirmReadyLoop:
 		}
 	}
 
-	log.Info("HandShake completed")
+	log.Debug("HandShake completed")
 	return nil
 }
 
@@ -2977,7 +2977,7 @@ func (ic *IbClient) Run() error {
 		ic.wrapper.Error(NO_VALID_ID, NOT_CONNECTED.code, NOT_CONNECTED.msg)
 		return NOT_CONNECTED
 	}
-	log.Info("run client")
+	log.Debug("run client")
 
 	go ic.goRequest()
 	go ic.goDecode()

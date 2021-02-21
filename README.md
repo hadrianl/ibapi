@@ -84,6 +84,7 @@ import (
 
 func main(){
     var err error
+    SetAPILogger(zap.NewDevelopmentConfig()) // log is default for production(json encode, info level), set to development(console encode, debug level) here
     log := GetLogger().Sugar()
     defer log.Sync()
     ibwrapper := &Wrapper{}

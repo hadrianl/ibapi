@@ -18,7 +18,8 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	log, _ = zap.NewDevelopment() // log is default for production(json encode, info level), set to development(console encode, debug level) here
+	SetAPILogger(zap.NewDevelopmentConfig())
+	log := GetLogger()
 	defer log.Sync()
 	runtime.GOMAXPROCS(4)
 

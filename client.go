@@ -2248,7 +2248,7 @@ call this func to subcribe a scanner which could scan the market.
 	For internal use only.Use default value XYZ.
 */
 func (ic *IbClient) ReqScannerSubscription(reqID int64, subscription *ScannerSubscription, scannerSubscriptionOptions []TagValue, scannerSubscriptionFilterOptions []TagValue) {
-	if ic.serverVersion < mMIN_SERVER_VER_SCANNER_GENERIC_OPTS {
+	if ic.serverVersion < mMIN_SERVER_VER_SCANNER_GENERIC_OPTS && len(scannerSubscriptionFilterOptions) > 0 {
 		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+" It does not support API scanner subscription generic filter options")
 		return
 	}
@@ -2285,6 +2285,17 @@ func (ic *IbClient) ReqScannerSubscription(reqID int64, subscription *ScannerSub
 		handleEmpty(subscription.AverageOptionVolumeAbove),
 		subscription.ScannerSettingPairs,
 		subscription.StockTypeFilter)
+
+	if ic.serverVersion >= mMIN_SERVER_VER_SCANNER_GENERIC_OPTS {
+		var scannerSubscriptionFilterOptionsBuffer bytes.Buffer
+		for _, tv := range scannerSubscriptionFilterOptions {
+			scannerSubscriptionFilterOptionsBuffer.WriteString(tv.Tag)
+			scannerSubscriptionFilterOptionsBuffer.WriteString("=")
+			scannerSubscriptionFilterOptionsBuffer.WriteString(tv.Value)
+			scannerSubscriptionFilterOptionsBuffer.WriteString(";")
+		}
+		fields = append(fields, scannerSubscriptionFilterOptionsBuffer.Bytes())
+	}
 
 	if ic.serverVersion >= mMIN_SERVER_VER_LINKING {
 		var scannerSubscriptionOptionsBuffer bytes.Buffer

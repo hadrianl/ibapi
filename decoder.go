@@ -1291,6 +1291,21 @@ func (d *ibDecoder) processRealTimeBarMsg(msgBuf *MsgBuffer) {
 	d.wrapper.RealtimeBar(reqID, rtb.Time, rtb.Open, rtb.High, rtb.Low, rtb.Close, rtb.Volume, rtb.Wap, rtb.Count)
 }
 
+/*
+void tickOptionComputation	(	
+int 	tickerId, 	-- 	the request's unique identifier.
+int 	field, 		-- Specifies the type of option computation. Pass the field value into TickType.getField(int tickType) to retrieve the field description. For example, a field value of 13 will map to modelOptComp, etc. 10 = Bid 11 = Ask 12 = Las
+int 	tickAttrib,	-- 	0 - return based, 1- price based.
+double 	impliedVolatility,
+double 	delta,
+double 	optPrice,
+double 	pvDividend,
+double 	gamma,
+double 	vega,
+double 	theta,
+double 	undPrice 
+)	
+*/
 func (d *ibDecoder) processTickOptionComputationMsg(msgBuf *MsgBuffer) {
 	optPrice := UNSETFLOAT
 	pvDividend := UNSETFLOAT
@@ -1299,19 +1314,19 @@ func (d *ibDecoder) processTickOptionComputationMsg(msgBuf *MsgBuffer) {
 	theta := UNSETFLOAT
 	undPrice := UNSETFLOAT
 
-	v := msgBuf.readInt()
-	reqID := msgBuf.readInt()
-	tickType := msgBuf.readInt()
+	reqID := msgBuf.readInt() 		// tickerId
+	field := msgBuf.readInt() 		// field
+	tickAttrib := msgBuf.readInt() 	// tickAtrib
 
 	impliedVol := msgBuf.readFloat()
 	delta := msgBuf.readFloat()
 
-	if v >= 6 || tickType == MODEL_OPTION || tickType == DELAYED_MODEL_OPTION {
+	if field >= 6 {// || tickAttrib == MODEL_OPTION || tickAttrib == DELAYED_MODEL_OPTION {
 		optPrice = msgBuf.readFloat()
 		pvDividend = msgBuf.readFloat()
 	}
 
-	if v >= 6 {
+	if field >= 6 {
 		gamma = msgBuf.readFloat()
 		vega = msgBuf.readFloat()
 		theta = msgBuf.readFloat()
@@ -1345,7 +1360,7 @@ func (d *ibDecoder) processTickOptionComputationMsg(msgBuf *MsgBuffer) {
 		undPrice = UNSETFLOAT
 	}
 
-	d.wrapper.TickOptionComputation(reqID, tickType, impliedVol, delta, optPrice, pvDividend, gamma, vega, theta, undPrice)
+	d.wrapper.TickOptionComputation(reqID, field, tickAttrib, impliedVol, delta, optPrice, pvDividend, gamma, vega, theta, undPrice)
 
 }
 

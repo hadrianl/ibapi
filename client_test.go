@@ -25,7 +25,7 @@ func TestClient(t *testing.T) {
 
 	ic := NewIbClient(new(Wrapper))
 
-	if err := ic.Connect("localhost", 7497, 0); err != nil {
+	if err := ic.Connect("localhost", 4002, 100); err != nil {
 		log.Panic("failed to connect", zap.Error(err))
 	}
 
@@ -162,7 +162,7 @@ func TestClientReconnect(t *testing.T) {
 	ic := NewIbClient(new(Wrapper))
 
 	for {
-		if err := ic.Connect("localhost", 7497, 0); err != nil {
+		if err := ic.Connect("localhost", 4002, 0); err != nil {
 			log.Error("failed to connect, reconnect after 5 sec", zap.Error(err))
 			time.Sleep(5 * time.Second)
 			continue
@@ -194,7 +194,7 @@ func TestClientWithContext(t *testing.T) {
 	ibwrapper := new(Wrapper)
 	ic := NewIbClient(ibwrapper)
 	ic.SetContext(ctx)
-	err = ic.Connect("localhost", 7497, 0)
+	err = ic.Connect("localhost", 4002, 0)
 	if err != nil {
 		log.Panic("failed to connect", zap.Error(err))
 	}

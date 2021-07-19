@@ -903,6 +903,14 @@ func (d *ibDecoder) processOpenOrder(msgBuf *MsgBuffer) {
 		o.UsePriceMgmtAlgo = msgBuf.readBool()
 	}
 
+	if d.version >= mMIN_SERVER_VER_DURATION {
+		o.Duration = msgBuf.readIntCheckUnset()
+	}
+
+	if d.version >= mMIN_SERVER_VER_POST_TO_ATS {
+		o.PostToAts = msgBuf.readIntCheckUnset()
+	}
+
 	d.wrapper.OpenOrder(o.OrderID, c, o, orderState)
 
 }

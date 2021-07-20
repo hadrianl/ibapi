@@ -503,9 +503,9 @@ func (w Wrapper) UpdateMktDepthL2(reqID int64, position int64, marketMaker strin
 	)
 }
 
-func (w Wrapper) TickOptionComputation(reqID int64, field int64, tickAttrib int64, impliedVol float64, delta float64, optPrice float64, pvDiviedn float64, gamma float64, vega float64, theta float64, undPrice float64) {
+func (w Wrapper) TickOptionComputation(reqID int64, tickType int64, tickAttrib int64, impliedVol float64, delta float64, optPrice float64, pvDiviedn float64, gamma float64, vega float64, theta float64, undPrice float64) {
 	log.With(zap.Int64("reqID", reqID)).Info("<TickOptionComputation>",
-		zap.Int64("field", field),
+		zap.Int64("tickType", tickType),
 		zap.Int64("tickAttrib", tickAttrib),
 		zap.Float64("impliedVol", impliedVol),
 		zap.Float64("delta", delta),

@@ -32,7 +32,7 @@ type IbWrapper interface {
 	ScannerParameters(xml string)
 	ScannerData(reqID int64, rank int64, conDetails *ContractDetails, distance string, benchmark string, projection string, legs string)
 	ScannerDataEnd(reqID int64)
-	TickOptionComputation(reqID int64, tickType int64, impliedVol float64, delta float64, optPrice float64, pvDiviedn float64, gamma float64, vega float64, theta float64, undPrice float64)
+	TickOptionComputation(reqID int64, tickType int64, tickAttrib int64, impliedVol float64, delta float64, optPrice float64, pvDiviedn float64, gamma float64, vega float64, theta float64, undPrice float64)
 	TickGeneric(reqID int64, tickType int64, value float64)
 	TickString(reqID int64, tickType int64, value string)
 	TickEFP(reqID int64, tickType int64, basisPoints float64, formattedBasisPoints string, totalDividends float64, holdDays int64, futureLastTradeDate string, dividendImpact float64, dividendsToLastTradeDate float64)
@@ -503,9 +503,10 @@ func (w Wrapper) UpdateMktDepthL2(reqID int64, position int64, marketMaker strin
 	)
 }
 
-func (w Wrapper) TickOptionComputation(reqID int64, tickType int64, impliedVol float64, delta float64, optPrice float64, pvDiviedn float64, gamma float64, vega float64, theta float64, undPrice float64) {
+func (w Wrapper) TickOptionComputation(reqID int64, tickType int64, tickAttrib int64, impliedVol float64, delta float64, optPrice float64, pvDiviedn float64, gamma float64, vega float64, theta float64, undPrice float64) {
 	log.With(zap.Int64("reqID", reqID)).Info("<TickOptionComputation>",
 		zap.Int64("tickType", tickType),
+		zap.Int64("tickAttrib", tickAttrib),
 		zap.Float64("impliedVol", impliedVol),
 		zap.Float64("delta", delta),
 		zap.Float64("optPrice", optPrice),

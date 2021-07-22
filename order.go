@@ -196,7 +196,10 @@ type Order struct {
 	ImbalanceOnly        bool
 	RouteMarketableToBbo bool
 	ParentPermID         int64
-	UsePriceMgmtAlgo     bool
+
+	UsePriceMgmtAlgo bool
+	Duration         int64
+	PostToAts        int64
 
 	SoftDollarTier SoftDollarTier
 }

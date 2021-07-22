@@ -935,6 +935,10 @@ func (ic *IbClient) PlaceOrder(orderID int64, contract *Contract, order *Order) 
 	case v < mMIN_SERVER_VER_PRICE_MGMT_ALGO && order.UsePriceMgmtAlgo:
 		ic.wrapper.Error(orderID, UPDATE_TWS.code, UPDATE_TWS.msg+" It does not support Use price management algo requests")
 		return
+	case v < mMIN_SERVER_VER_DURATION && order.Duration != UNSETINT:
+		ic.wrapper.Error(orderID, UPDATE_TWS.code, UPDATE_TWS.msg+" It does not support duration attribute")
+	case v < mMIN_SERVER_VER_POST_TO_ATS && order.PostToAts != UNSETINT:
+		ic.wrapper.Error(orderID, UPDATE_TWS.code, UPDATE_TWS.msg+" It does not support postToAts attribute")
 	}
 
 	var v int
@@ -1301,6 +1305,14 @@ func (ic *IbClient) PlaceOrder(orderID int64, contract *Contract, order *Order) 
 
 		if ic.serverVersion >= mMIN_SERVER_VER_PRICE_MGMT_ALGO {
 			fields = append(fields, order.UsePriceMgmtAlgo)
+		}
+
+		if ic.serverVersion >= mMIN_SERVER_VER_DURATION {
+			fields = append(fields, order.Duration)
+		}
+
+		if ic.serverVersion >= mMIN_SERVER_VER_POST_TO_ATS {
+			fields = append(fields, order.PostToAts)
 		}
 
 		msg := makeMsgBytes(fields...)

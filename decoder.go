@@ -903,6 +903,14 @@ func (d *ibDecoder) processOpenOrder(msgBuf *MsgBuffer) {
 		o.UsePriceMgmtAlgo = msgBuf.readBool()
 	}
 
+	if d.version >= mMIN_SERVER_VER_DURATION {
+		o.Duration = msgBuf.readIntCheckUnset()
+	}
+
+	if d.version >= mMIN_SERVER_VER_POST_TO_ATS {
+		o.PostToAts = msgBuf.readIntCheckUnset()
+	}
+
 	d.wrapper.OpenOrder(o.OrderID, c, o, orderState)
 
 }
@@ -1291,6 +1299,21 @@ func (d *ibDecoder) processRealTimeBarMsg(msgBuf *MsgBuffer) {
 	d.wrapper.RealtimeBar(reqID, rtb.Time, rtb.Open, rtb.High, rtb.Low, rtb.Close, rtb.Volume, rtb.Wap, rtb.Count)
 }
 
+/*
+void tickOptionComputation	(
+int 	tickerId, 	-- 	the request's unique identifier.
+int 	field, 		-- Specifies the type of option computation. Pass the field value into TickType.getField(int tickType) to retrieve the field description. For example, a field value of 13 will map to modelOptComp, etc. 10 = Bid 11 = Ask 12 = Las
+int 	tickAttrib,	-- 	0 - return based, 1- price based.
+double 	impliedVolatility,
+double 	delta,
+double 	optPrice,
+double 	pvDividend,
+double 	gamma,
+double 	vega,
+double 	theta,
+double 	undPrice
+)
+*/
 func (d *ibDecoder) processTickOptionComputationMsg(msgBuf *MsgBuffer) {
 	optPrice := UNSETFLOAT
 	pvDividend := UNSETFLOAT
@@ -1299,9 +1322,20 @@ func (d *ibDecoder) processTickOptionComputationMsg(msgBuf *MsgBuffer) {
 	theta := UNSETFLOAT
 	undPrice := UNSETFLOAT
 
-	v := msgBuf.readInt()
-	reqID := msgBuf.readInt()
-	tickType := msgBuf.readInt()
+	var v int64
+	if d.version < mMIN_SERVER_VER_PRICE_BASED_VOLATILITY {
+		v = msgBuf.readInt()
+	} else {
+		v = int64(d.version)
+	}
+
+	reqID := msgBuf.readInt()    // tickerId
+	tickType := msgBuf.readInt() // field
+
+	var tickAttrib int64
+	if d.version >= mMIN_SERVER_VER_PRICE_BASED_VOLATILITY {
+		tickAttrib = msgBuf.readInt() // tickAtrib
+	}
 
 	impliedVol := msgBuf.readFloat()
 	delta := msgBuf.readFloat()
@@ -1345,7 +1379,7 @@ func (d *ibDecoder) processTickOptionComputationMsg(msgBuf *MsgBuffer) {
 		undPrice = UNSETFLOAT
 	}
 
-	d.wrapper.TickOptionComputation(reqID, tickType, impliedVol, delta, optPrice, pvDividend, gamma, vega, theta, undPrice)
+	d.wrapper.TickOptionComputation(reqID, tickType, tickAttrib, impliedVol, delta, optPrice, pvDividend, gamma, vega, theta, undPrice)
 
 }
 

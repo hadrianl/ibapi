@@ -198,8 +198,8 @@ type Order struct {
 	ParentPermID         int64
 
 	UsePriceMgmtAlgo bool
-	Duration         int64
-	PostToAts        int64
+	Duration         int64 `default:"UNSETINT"`
+	PostToAts        int64 `default:"UNSETINT"`
 
 	SoftDollarTier SoftDollarTier
 }
@@ -325,6 +325,9 @@ func NewOrder() *Order {
 	order.LimitPriceOffset = UNSETFLOAT
 
 	order.CashQty = UNSETFLOAT
+	order.FilledQuantity = UNSETFLOAT
+	order.Duration = UNSETINT
+	order.PostToAts = UNSETINT
 
 	return order
 }

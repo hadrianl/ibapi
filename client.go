@@ -1093,9 +1093,9 @@ func (ic *IbClient) PlaceOrder(orderID int64, contract *Contract, order *Order) 
 		order.AllOrNone,
 		handleEmpty(order.MinQty),
 		handleEmpty(order.PercentOffset),
-		order.ETradeOnly,
-		order.FirmQuoteOnly,
-		handleEmpty(order.NBBOPriceCap),
+		false, // order.ETradeOnly
+		false, // order.FirmQuoteOnly
+		handleEmpty(UNSETFLOAT),
 		order.AuctionStrategy,
 		handleEmpty(order.StartingPrice),
 		handleEmpty(order.StockRefPrice),
@@ -1308,11 +1308,11 @@ func (ic *IbClient) PlaceOrder(orderID int64, contract *Contract, order *Order) 
 		}
 
 		if ic.serverVersion >= mMIN_SERVER_VER_DURATION {
-			fields = append(fields, order.Duration)
+			fields = append(fields, handleEmpty(order.Duration))
 		}
 
 		if ic.serverVersion >= mMIN_SERVER_VER_POST_TO_ATS {
-			fields = append(fields, order.PostToAts)
+			fields = append(fields, handleEmpty(order.PostToAts))
 		}
 
 		msg := makeMsgBytes(fields...)

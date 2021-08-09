@@ -25,7 +25,7 @@ func TestClient(t *testing.T) {
 
 	ic := NewIbClient(new(Wrapper))
 
-	if err := ic.Connect("localhost", 4002, 100); err != nil {
+	if err := ic.Connect("localhost", 7497, 100); err != nil {
 		log.Panic("failed to connect", zap.Error(err))
 	}
 
@@ -194,7 +194,7 @@ func TestClientWithContext(t *testing.T) {
 	ibwrapper := new(Wrapper)
 	ic := NewIbClient(ibwrapper)
 	ic.SetContext(ctx)
-	err = ic.Connect("localhost", 4002, 0)
+	err = ic.Connect("localhost", 7497, 0)
 	if err != nil {
 		log.Panic("failed to connect", zap.Error(err))
 	}
@@ -211,7 +211,8 @@ func TestClientWithContext(t *testing.T) {
 	ic.ReqAccountUpdates(true, "")
 	// ic.ReqExecutions(ic.GetReqID(), ExecutionFilter{})
 
-	hsi := Contract{ContractID: 415314929, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
+	hsi := Contract{ContractID: 500007591, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
+	// hsi := Contract{Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
 	// ic.ReqMktDepth(ic.GetReqID(), &hsi1909, 5, true, nil)
 	ic.ReqContractDetails(ic.GetReqID(), &hsi)
 	// ic.ReqAllOpenOrders()
@@ -283,4 +284,51 @@ func BenchmarkCopySlice(b *testing.B) {
 		copy(newSlice, oarr)
 		_ = newSlice
 	}
+}
+
+func TestPlaceOrder(t *testing.T) {
+	SetAPILogger(zap.NewDevelopmentConfig())
+	log := GetLogger()
+	defer log.Sync()
+	runtime.GOMAXPROCS(4)
+	var err error
+
+	ibwrapper := new(Wrapper)
+	ic := NewIbClient(ibwrapper)
+
+	err = ic.Connect("localhost", 7497, 0)
+	if err != nil {
+		log.Panic("failed to connect", zap.Error(err))
+	}
+
+	ic.SetConnectionOptions("+PACEAPI")
+	err = ic.HandShake()
+	if err != nil {
+		log.Panic("failed to hand shake", zap.Error(err))
+	}
+	ic.Run()
+
+	ic.ReqCurrentTime()
+	// ic.ReqAutoOpenOrders(true)
+	ic.ReqAccountUpdates(true, "")
+	// ic.ReqExecutions(ic.GetReqID(), ExecutionFilter{})
+
+	// hsi := Contract{ContractID: 500007591, Symbol: "HSI", SecurityType: "FUT", Exchange: "HKFE"}
+	aapl := Contract{ContractID: 265598, Symbol: "AAPL", SecurityType: "STK", Exchange: "NYSE"}
+	ic.ReqContractDetails(ic.GetReqID(), &aapl)
+
+	ic.ReqMktData(ic.GetReqID(), &aapl, "", false, false, nil)
+
+	lmtOrder := NewLimitOrder("BUY", 144, 1)
+	// mktOrder := NewMarketOrder("BUY", 1)
+	ic.PlaceOrder(ibwrapper.GetNextOrderID(), &aapl, lmtOrder)
+
+	ic.LoopUntilDone(
+		func() {
+			<-time.After(time.Second * 25)
+			ic.Disconnect()
+		})
+
+	fmt.Println(err)
+
 }

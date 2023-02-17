@@ -93,6 +93,8 @@ type IbWrapper interface {
 	ConnectAck()
 	ConnectionClosed()
 	ReplaceFAEnd(reqID int64, text string)
+	WshMetaData(reqID int64, dataJson string)
+	WshEventData(reqID int64, dataJson string)
 }
 
 // Wrapper is the default wrapper provided by this golang implement.
@@ -673,4 +675,11 @@ func (w Wrapper) CompletedOrdersEnd() {
 
 func (w Wrapper) ReplaceFAEnd(reqID int64, text string) {
 	log.With(zap.Int64("reqID", reqID)).Info("<ReplaceFAEnd>", zap.String("text", text))
+}
+
+func (w Wrapper) WshMetaData(reqID int64, dataJson string) {
+	log.With(zap.Int64("reqID", reqID)).Info("<WshMetaData>", zap.String("dataJson", dataJson))
+}
+func (w Wrapper) WshEventData(reqID int64, dataJson string) {
+	log.With(zap.Int64("reqID", reqID)).Info("<WshEventData>", zap.String("dataJson", dataJson))
 }

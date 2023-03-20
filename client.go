@@ -2857,6 +2857,49 @@ func (ic *IbClient) ReqCompletedOrders(apiOnly bool) {
 	ic.reqChan <- msg
 }
 
+func (ic *IbClient) ReqWshMetaData(reqID int64) {
+	if ic.serverVersion < mMIN_SERVER_VER_WSHE_CALENDAR {
+		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support WSHE Calendar API.")
+		return
+	}
+
+	msg := makeMsgBytes(mREQ_WSH_META_DATA, reqID)
+
+	ic.reqChan <- msg
+}
+
+func (ic *IbClient) CancelWshMetaData(reqID int64) {
+	if ic.serverVersion < mMIN_SERVER_VER_WSHE_CALENDAR {
+		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support WSHE Calendar API.")
+		return
+	}
+
+	msg := makeMsgBytes(mCANCEL_WSH_META_DATA, reqID)
+
+	ic.reqChan <- msg
+}
+
+func (ic *IbClient) ReqWshEventData(reqID int64, conID int64) {
+	if ic.serverVersion < mMIN_SERVER_VER_WSHE_CALENDAR {
+		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support WSHE Calendar API.")
+		return
+	}
+
+	msg := makeMsgBytes(mREQ_WSH_META_DATA, reqID, conID)
+
+	ic.reqChan <- msg
+}
+
+func (ic *IbClient) CancelWshEventData(reqID int64) {
+	if ic.serverVersion < mMIN_SERVER_VER_WSHE_CALENDAR {
+		ic.wrapper.Error(NO_VALID_ID, UPDATE_TWS.code, UPDATE_TWS.msg+"  It does not support WSHE Calendar API.")
+		return
+	}
+
+	msg := makeMsgBytes(mCANCEL_WSH_EVENT_DATA, reqID)
+
+	ic.reqChan <- msg
+}
 //--------------------------three major goroutine -----------------------------------------------------
 /*
 1.goReceive scan a whole msg bytes and put it into msgChan

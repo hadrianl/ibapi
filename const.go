@@ -93,6 +93,8 @@ const (
 	mCOMPLETED_ORDER                          IN = 101
 	mCOMPLETED_ORDERS_END                     IN = 102
 	mREPLACE_FA_END                           IN = 103
+	mWSH_META_DATA                            IN = 104
+	mWSH_EVENT_DATA                           IN = 105
 )
 
 const (
@@ -171,6 +173,10 @@ const (
 	mREQ_TICK_BY_TICK_DATA         OUT = 97
 	mCANCEL_TICK_BY_TICK_DATA      OUT = 98
 	mREQ_COMPLETED_ORDERS          OUT = 99
+	mREQ_WSH_META_DATA             OUT = 100
+	mCANCEL_WSH_META_DATA          OUT = 101
+	mREQ_WSH_EVENT_DATA            OUT = 102
+	mCANCEL_WSH_EVENT_DATA         OUT = 103
 )
 
 const (
@@ -275,9 +281,10 @@ const (
 	mMIN_SERVER_VER_DURATION                   Version = 158
 	mMIN_SERVER_VER_MARKET_DATA_IN_SHARES      Version = 159
 	mMIN_SERVER_VER_POST_TO_ATS                Version = 160
+	mMIN_SERVER_VER_WSHE_CALENDAR              Version = 161
 
 	MIN_CLIENT_VER Version = 100
-	MAX_CLIENT_VER Version = mMIN_SERVER_VER_POST_TO_ATS
+	MAX_CLIENT_VER Version = mMIN_SERVER_VER_WSHE_CALENDAR
 )
 
 // tick const

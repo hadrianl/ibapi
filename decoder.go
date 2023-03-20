@@ -158,8 +158,10 @@ func (d *ibDecoder) setmsgID2process() {
 		mORDER_BOUND:                              d.processOrderBoundMsg,
 		mCOMPLETED_ORDER:                          d.processCompletedOrderMsg,
 		mCOMPLETED_ORDERS_END:                     d.processCompletedOrdersEndMsg,
-		mREPLACE_FA_END:                           d.processReplaceFAEndMsg}
-
+		mREPLACE_FA_END:                           d.processReplaceFAEndMsg,
+		mWSH_META_DATA:                            d.processWshMetaDataMsg,
+		mWSH_EVENT_DATA:                           d.processWshEventDataMsg,
+	}
 }
 
 func (d *ibDecoder) wrapTickSize(msgBuf *MsgBuffer) {
@@ -2188,4 +2190,18 @@ func (d *ibDecoder) processReplaceFAEndMsg(msgBuf *MsgBuffer) {
 	text := msgBuf.readString()
 
 	d.wrapper.ReplaceFAEnd(reqID, text)
+}
+
+func (d *ibDecoder) processWshMetaDataMsg(msgBuf *MsgBuffer) {
+	reqID := msgBuf.readInt()
+	dataJson := msgBuf.readString()
+
+	d.wrapper.WshMetaData(reqID, dataJson)
+}
+
+func (d *ibDecoder) processWshEventDataMsg(msgBuf *MsgBuffer) {
+	reqID := msgBuf.readInt()
+	dataJson := msgBuf.readString()
+
+	d.wrapper.WshEventData(reqID, dataJson)
 }

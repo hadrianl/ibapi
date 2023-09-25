@@ -138,7 +138,9 @@ func (ic *IbClient) Disconnect() error {
 	// should not reconnect IbClient in ConnectionClosed
 	// because reset would be called right after ConnectionClosed
 	defer func() {
-		ic.done <- true
+		if len(ic.done) > 0 {
+			ic.done <- true
+		}
 	}()
 	defer ic.reset()
 	defer ic.wrapper.ConnectionClosed()

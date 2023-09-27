@@ -2,6 +2,8 @@ package ibapi
 
 import (
 	"fmt"
+
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -17,13 +19,13 @@ const (
 	AUCTION_TRANSPARENT
 )
 
-//Order is the origin type of order,do not try to new one unless you definitely know how to fill all the fields!Use NewDefaultOrder instead!
+// Order is the origin type of order,do not try to new one unless you definitely know how to fill all the fields!Use NewDefaultOrder instead!
 type Order struct {
 	OrderID                       int64
 	ClientID                      int64
 	PermID                        int64
 	Action                        string
-	TotalQuantity                 float64
+	TotalQuantity                 decimal.Decimal
 	OrderType                     string
 	LimitPrice                    float64 `default:"UNSETFLOAT"`
 	AuxPrice                      float64 `default:"UNSETFLOAT"`
@@ -202,6 +204,10 @@ type Order struct {
 	PostToAts        int64 `default:"UNSETINT"`
 
 	SoftDollarTier SoftDollarTier
+
+	autoCancelParent      bool
+	advancedErrorOverride string `default:""`
+	manualOrderTime       string `default:""`
 }
 
 func (o Order) String() string {
@@ -333,7 +339,7 @@ func NewOrder() *Order {
 }
 
 // NewLimitOrder create a limit order with action, limit price and quantity
-func NewLimitOrder(action string, lmtPrice float64, quantity float64) *Order {
+func NewLimitOrder(action string, lmtPrice float64, quantity decimal.Decimal) *Order {
 	o := NewOrder()
 	o.OrderType = "LMT"
 	o.Action = action
@@ -344,7 +350,7 @@ func NewLimitOrder(action string, lmtPrice float64, quantity float64) *Order {
 }
 
 // NewMarketOrder create a market order with action and quantity
-func NewMarketOrder(action string, quantity float64) *Order {
+func NewMarketOrder(action string, quantity decimal.Decimal) *Order {
 	o := NewOrder()
 	o.OrderType = "MKT"
 	o.Action = action

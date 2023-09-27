@@ -282,9 +282,9 @@ const (
 	mMIN_SERVER_VER_MARKET_DATA_IN_SHARES      Version = 159
 	mMIN_SERVER_VER_POST_TO_ATS                Version = 160
 	mMIN_SERVER_VER_WSHE_CALENDAR              Version = 161
-
-	MIN_CLIENT_VER Version = 100
-	MAX_CLIENT_VER Version = mMIN_SERVER_VER_WSHE_CALENDAR
+	MIN_CLIENT_VER                             Version = 100
+	MIN_SERVER_VER_BOND_ISSUERID               Version = 176
+	MAX_CLIENT_VER                             Version = MIN_SERVER_VER_BOND_ISSUERID
 )
 
 // tick const

@@ -988,7 +988,7 @@ func (ic *IbClient) PlaceOrder(orderID int64, contract *Contract, order *Order) 
 	if ic.serverVersion >= mMIN_SERVER_VER_FRACTIONAL_POSITIONS {
 		fields = append(fields, order.TotalQuantity)
 	} else {
-		fields = append(fields, int64(order.TotalQuantity))
+		fields = append(fields, order.TotalQuantity)
 	}
 
 	fields = append(fields, order.OrderType)
@@ -1316,6 +1316,10 @@ func (ic *IbClient) PlaceOrder(orderID int64, contract *Contract, order *Order) 
 		if ic.serverVersion >= mMIN_SERVER_VER_POST_TO_ATS {
 			fields = append(fields, handleEmpty(order.PostToAts))
 		}
+
+		fields = append(fields, order.autoCancelParent)
+		fields = append(fields, order.advancedErrorOverride)
+		fields = append(fields, order.manualOrderTime)
 
 		msg := makeMsgBytes(fields...)
 
@@ -2902,6 +2906,7 @@ func (ic *IbClient) CancelWshEventData(reqID int64) {
 
 	ic.reqChan <- msg
 }
+
 //--------------------------three major goroutine -----------------------------------------------------
 /*
 1.goReceive scan a whole msg bytes and put it into msgChan
@@ -2909,7 +2914,7 @@ func (ic *IbClient) CancelWshEventData(reqID int64) {
 3.goRequest create a select loop to get request from reqChan and send it to tws or ib gateway
 */
 
-//goRequest will get the req from reqChan and send it to TWS
+// goRequest will get the req from reqChan and send it to TWS
 func (ic *IbClient) goRequest() {
 	log.Debug("requester start")
 	defer func() {
@@ -2950,8 +2955,8 @@ requestLoop:
 
 }
 
-//goReceive receive the msg from the socket, get the fields and put them into msgChan
-//goReceive handle the msgBuf which is different from the offical.Not continuously read, but split first and then decode
+// goReceive receive the msg from the socket, get the fields and put them into msgChan
+// goReceive handle the msgBuf which is different from the offical.Not continuously read, but split first and then decode
 func (ic *IbClient) goReceive() {
 	log.Debug("receiver start")
 	defer func() {
@@ -3001,7 +3006,7 @@ func (ic *IbClient) goReceive() {
 
 }
 
-//goDecode decode the fields received from the msgChan
+// goDecode decode the fields received from the msgChan
 func (ic *IbClient) goDecode() {
 	log.Debug("decoder start")
 	defer func() {

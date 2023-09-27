@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	// log "github.com/sirupsen/logrus"
 )
@@ -153,6 +154,8 @@ func makeMsgBytes(fields ...interface{}) []byte {
 
 	for _, f := range fields {
 		switch v := f.(type) {
+		case decimal.Decimal:
+			msgBytes = append(msgBytes, []byte(v.String())...)
 		case int64:
 			msgBytes = strconv.AppendInt(msgBytes, v, 10)
 		case float64:
@@ -246,7 +249,7 @@ func handleEmpty(d interface{}) string {
 	}
 }
 
-//InitDefault try to init the object with the default tag, that is a common way but not a efficent way
+// InitDefault try to init the object with the default tag, that is a common way but not a efficent way
 func InitDefault(o interface{}) {
 	t := reflect.TypeOf(o).Elem()
 	v := reflect.ValueOf(o).Elem()
@@ -345,6 +348,26 @@ func (m *MsgBuffer) readFloat() float64 {
 	}
 
 	return f
+}
+
+func (m *MsgBuffer) readDecimal() decimal.Decimal {
+	var d decimal.Decimal
+	m.bs, m.err = m.ReadBytes(fieldSplit)
+	if m.err != nil {
+		log.Panic("decode decimal error", zap.Error(m.err))
+	}
+
+	m.bs = m.bs[:len(m.bs)-1]
+	if bytes.Equal(m.bs, nil) {
+		return decimal.Zero
+	}
+
+	d, m.err = decimal.NewFromString(string(m.bs))
+	if m.err != nil {
+		log.Panic("decode decimal error", zap.Error(m.err))
+	}
+
+	return d
 }
 
 func (m *MsgBuffer) readFloatCheckUnset() float64 {
